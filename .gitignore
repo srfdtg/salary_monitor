@@ -1,0 +1,24 @@
+# Local toolchains and sandbox state
+/.android-toolchain/
+/.dsh-acl-recovery/
+
+# Build and distribution outputs
+/build/
+/dist/
+/android/build/
+
+# Android signing secrets (keystore and password)
+/android/signing/
+*.jks
+*.keystore
+keystore.properties
+
+# Local browser profiles and generated design caches
+/design/edge-profile*/
+/design/edge-profile2/
+
+# Logs and OS/editor files
+*.log
+*.tmp
+Thumbs.db
+.DS_Store
