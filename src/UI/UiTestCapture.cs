@@ -47,6 +47,11 @@ namespace SalaryMonitor.UI
                 CaptureElement((FrameworkElement)main.Content,
                     Path.Combine(directory, "main.png"));
 
+                main.SetAmountsHiddenForTest(true);
+                CaptureElement((FrameworkElement)main.Content,
+                    Path.Combine(directory, "main-hidden.png"));
+                main.SetAmountsHiddenForTest(false);
+
                 SettingsWindow dialog = new SettingsWindow(settings, store);
                 dialog.Owner = main;
                 dialog.Topmost = main.Topmost;

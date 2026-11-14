@@ -17,6 +17,8 @@ namespace SalaryMonitor.UI
             new Point(5, 12), new Point(19, 12)));
         public static readonly Geometry Close = Freeze(BuildClose());
         public static readonly Geometry Clock = Freeze(BuildClock());
+        public static readonly Geometry Eye = Freeze(BuildEye());
+        public static readonly Geometry EyeOff = Freeze(BuildEyeOff());
 
         private static Geometry BuildPin()
         {
@@ -68,6 +70,34 @@ namespace SalaryMonitor.UI
             return group;
         }
 
+        private static Geometry BuildEye()
+        {
+            GeometryGroup group = new GeometryGroup();
+            PathGeometry outline = new PathGeometry();
+            PathFigure figure = new PathFigure();
+            figure.StartPoint = new Point(2.5, 12);
+            figure.Segments.Add(new BezierSegment(
+                new Point(5.2, 7.8), new Point(8.4, 5.5), new Point(12, 5.5), true));
+            figure.Segments.Add(new BezierSegment(
+                new Point(15.6, 5.5), new Point(18.8, 7.8), new Point(21.5, 12), true));
+            figure.Segments.Add(new BezierSegment(
+                new Point(18.8, 16.2), new Point(15.6, 18.5), new Point(12, 18.5), true));
+            figure.Segments.Add(new BezierSegment(
+                new Point(8.4, 18.5), new Point(5.2, 16.2), new Point(2.5, 12), true));
+            figure.IsClosed = true;
+            outline.Figures.Add(figure);
+            group.Children.Add(outline);
+            group.Children.Add(new EllipseGeometry(new Point(12, 12), 3.0, 3.0));
+            return group;
+        }
+
+        private static Geometry BuildEyeOff()
+        {
+            GeometryGroup group = (GeometryGroup)BuildEye();
+            group.Children.Add(new LineGeometry(new Point(4, 4), new Point(20, 20)));
+            return group;
+        }
+
         private static Geometry Freeze(Geometry geometry)
         {
             geometry.Freeze();
@@ -116,6 +146,11 @@ namespace SalaryMonitor.UI
             ToolTip = Theme.Tooltip(text);
             AutomationProperties.SetName(this, text);
             AutomationProperties.SetHelpText(this, text);
+        }
+
+        public void SetIcon(Geometry icon)
+        {
+            _icon.Data = icon;
         }
 
         private static ControlTemplate BuildIconTemplate()

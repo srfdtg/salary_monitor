@@ -11,7 +11,7 @@ namespace SalaryMonitor.Core
     [DataContract]
     public sealed class AppSettings
     {
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
         public const decimal DefaultMonthlySalary = 33500m;
         public const decimal DefaultMonthlyWorkDays = 21.75m;
         public const int DefaultWorkStartMinutes = 9 * 60 + 30;   // 09:30
@@ -46,6 +46,9 @@ namespace SalaryMonitor.Core
         [DataMember(Name = "actualWorkdaysEnabled", Order = 8)]
         public bool ActualWorkdaysEnabled { get; set; }
 
+        [DataMember(Name = "amountsHidden", Order = 9)]
+        public bool AmountsHidden { get; set; }
+
         public AppSettings()
         {
         }
@@ -62,6 +65,7 @@ namespace SalaryMonitor.Core
             settings.WorkEndMinutes = DefaultWorkEndMinutes;
             settings.AlwaysOnTop = true;
             settings.ActualWorkdaysEnabled = false;
+            settings.AmountsHidden = false;
             return settings;
         }
 
@@ -77,6 +81,7 @@ namespace SalaryMonitor.Core
             copy.WorkEndMinutes = this.WorkEndMinutes;
             copy.AlwaysOnTop = this.AlwaysOnTop;
             copy.ActualWorkdaysEnabled = this.ActualWorkdaysEnabled;
+            copy.AmountsHidden = this.AmountsHidden;
             return copy;
         }
     }

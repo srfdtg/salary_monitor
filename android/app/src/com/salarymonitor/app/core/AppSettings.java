@@ -10,7 +10,7 @@ import java.math.BigDecimal;
  * divides the monthly salary by the number of workdays in the current month.
  */
 public final class AppSettings {
-    public static final int CURRENT_VERSION = 2;
+    public static final int CURRENT_VERSION = 3;
     public static final BigDecimal DEFAULT_MONTHLY_SALARY = new BigDecimal("33500");
     public static final BigDecimal DEFAULT_MONTHLY_WORK_DAYS = new BigDecimal("21.75");
     public static final int DEFAULT_WORK_START_MINUTES = 9 * 60 + 30;
@@ -27,6 +27,7 @@ public final class AppSettings {
     private int workEndMinutes = DEFAULT_WORK_END_MINUTES;
     private boolean keepScreenOn = true;
     private boolean actualWorkdaysEnabled = false;
+    private boolean amountsHidden = false;
 
     public AppSettings() {
     }
@@ -46,6 +47,7 @@ public final class AppSettings {
         copy.workEndMinutes = workEndMinutes;
         copy.keepScreenOn = keepScreenOn;
         copy.actualWorkdaysEnabled = actualWorkdaysEnabled;
+        copy.amountsHidden = amountsHidden;
         return copy;
     }
 
@@ -119,5 +121,13 @@ public final class AppSettings {
 
     public void setActualWorkdaysEnabled(boolean actualWorkdaysEnabled) {
         this.actualWorkdaysEnabled = actualWorkdaysEnabled;
+    }
+
+    public boolean isAmountsHidden() {
+        return amountsHidden;
+    }
+
+    public void setAmountsHidden(boolean amountsHidden) {
+        this.amountsHidden = amountsHidden;
     }
 }

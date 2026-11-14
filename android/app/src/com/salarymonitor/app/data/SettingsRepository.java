@@ -21,6 +21,7 @@ public final class SettingsRepository {
     private static final String KEY_WORK_END = "work_end_minutes";
     private static final String KEY_KEEP_SCREEN_ON = "keep_screen_on";
     private static final String KEY_ACTUAL_WORKDAYS = "actual_workdays_enabled";
+    private static final String KEY_AMOUNTS_HIDDEN = "amounts_hidden";
 
     private SettingsRepository() {
     }
@@ -48,6 +49,7 @@ public final class SettingsRepository {
                     defaults.getWorkEndMinutes()));
             settings.setKeepScreenOn(prefs.getBoolean(KEY_KEEP_SCREEN_ON, true));
             settings.setActualWorkdaysEnabled(prefs.getBoolean(KEY_ACTUAL_WORKDAYS, false));
+            settings.setAmountsHidden(prefs.getBoolean(KEY_AMOUNTS_HIDDEN, false));
 
             SettingsValidator.Result check = SettingsValidator.validate(settings);
             if (!check.isValid()) {
@@ -74,6 +76,7 @@ public final class SettingsRepository {
         editor.putInt(KEY_WORK_END, settings.getWorkEndMinutes());
         editor.putBoolean(KEY_KEEP_SCREEN_ON, settings.isKeepScreenOn());
         editor.putBoolean(KEY_ACTUAL_WORKDAYS, settings.isActualWorkdaysEnabled());
+        editor.putBoolean(KEY_AMOUNTS_HIDDEN, settings.isAmountsHidden());
         return editor.commit();
     }
 

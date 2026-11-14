@@ -578,6 +578,14 @@ namespace SalaryMonitor.Tests
                 TestRunner.Equal("09:30", Formatters.ClockHHmm(570), "HHmm");
             });
 
+            runner.Run("FMT-006 hidden salary placeholders do not leak digits", delegate
+            {
+                TestRunner.Equal("••••••", Formatters.HiddenAmount, "main amount mask");
+                TestRunner.Equal("¥••••", Formatters.HiddenMoney, "rate mask");
+                TestRunner.False(Formatters.HiddenAmount.Contains("0"), "amount mask has no digit");
+                TestRunner.False(Formatters.HiddenMoney.Contains("."), "rate mask has no decimal");
+            });
+
             runner.Run("PARSE-001 time input accepts H:mm and HH:mm", delegate
             {
                 int value;
@@ -701,6 +709,7 @@ namespace SalaryMonitor.Tests
                     TestRunner.Equal(33500m, result.Settings.MonthlySalary, "default salary");
                     TestRunner.Equal(570, result.Settings.WorkStartMinutes, "default start");
                     TestRunner.True(result.Settings.AlwaysOnTop, "default topmost");
+                    TestRunner.False(result.Settings.AmountsHidden, "default amounts visible");
                 });
             });
 
@@ -719,6 +728,7 @@ namespace SalaryMonitor.Tests
                     settings.WorkEndMinutes = 18 * 60;
                     settings.AlwaysOnTop = false;
                     settings.ActualWorkdaysEnabled = true;
+                    settings.AmountsHidden = true;
 
                     SettingsSaveResult save = store.Save(settings);
                     TestRunner.True(save.Success, "save success: " + save.ErrorMessage);
@@ -734,6 +744,7 @@ namespace SalaryMonitor.Tests
                     TestRunner.Equal(1080, load.Settings.WorkEndMinutes, "end");
                     TestRunner.False(load.Settings.AlwaysOnTop, "topmost");
                     TestRunner.True(load.Settings.ActualWorkdaysEnabled, "actual workdays");
+                    TestRunner.True(load.Settings.AmountsHidden, "amounts hidden");
                 });
             });
 
@@ -774,7 +785,7 @@ namespace SalaryMonitor.Tests
                     AppSettings settings = AppSettings.CreateDefault();
                     SettingsStore writer = new SettingsStore(path);
                     TestRunner.True(writer.Save(settings).Success, "seed save");
-                    string json = File.ReadAllText(path).Replace("\"version\":2", "\"version\":3");
+                    string json = File.ReadAllText(path).Replace("\"version\":3", "\"version\":4");
                     File.WriteAllText(path, json, new UTF8Encoding(false));
                     SettingsLoadResult result = new SettingsStore(path).Load();
                     TestRunner.True(result.UsedDefaults, "version fallback");
@@ -985,10 +996,29 @@ namespace SalaryMonitor.Tests
                     File.WriteAllText(path, json, new UTF8Encoding(false));
                     SettingsLoadResult result = new SettingsStore(path).Load();
                     TestRunner.False(result.UsedDefaults, "migrated file loaded");
-                    TestRunner.Equal(2, result.Settings.Version, "version upgraded");
+                    TestRunner.Equal(3, result.Settings.Version, "version upgraded");
                     TestRunner.Equal(40000m, result.Settings.MonthlySalary, "salary retained");
                     TestRunner.Equal(22m, result.Settings.MonthlyWorkDays, "days retained");
                     TestRunner.False(result.Settings.ActualWorkdaysEnabled, "actual mode defaults off");
+                    TestRunner.False(result.Settings.AmountsHidden, "amounts default visible");
+                });
+            });
+
+            runner.Run("STORE-018 version 2 settings migrate without losing actual-day mode", delegate
+            {
+                WithTempDirectory(delegate(string dir)
+                {
+                    string path = Path.Combine(dir, "settings.json");
+                    string json = "{\"version\":2,\"monthlySalary\":40000,\"monthlyWorkDays\":22," +
+                        "\"workStartMinutes\":540,\"lunchStartMinutes\":720," +
+                        "\"lunchEndMinutes\":780,\"workEndMinutes\":1080,\"alwaysOnTop\":false," +
+                        "\"actualWorkdaysEnabled\":true}";
+                    File.WriteAllText(path, json, new UTF8Encoding(false));
+                    SettingsLoadResult result = new SettingsStore(path).Load();
+                    TestRunner.False(result.UsedDefaults, "migrated file loaded");
+                    TestRunner.Equal(3, result.Settings.Version, "version upgraded");
+                    TestRunner.True(result.Settings.ActualWorkdaysEnabled, "actual mode retained");
+                    TestRunner.False(result.Settings.AmountsHidden, "hidden flag defaults off");
                 });
             });
         }

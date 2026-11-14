@@ -7,6 +7,8 @@
     <string name="reset_defaults">恢复默认</string>
     <string name="close">关闭</string>
     <string name="open_settings">打开设置</string>
+    <string name="hide_amount">隐藏工资</string>
+    <string name="show_amount">显示工资</string>
     <string name="screen_keep_on">屏幕常亮</string>
     <string name="screen_keep_on_note">查看时保持屏幕点亮</string>
 </resources>

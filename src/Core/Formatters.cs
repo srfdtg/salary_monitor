@@ -5,6 +5,9 @@ namespace SalaryMonitor.Core
 {
     public static class Formatters
     {
+        public const string HiddenAmount = "••••••";
+        public const string HiddenMoney = "¥••••";
+
         private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
 
         public static string MoneyValue(decimal amount)

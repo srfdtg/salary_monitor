@@ -1,6 +1,6 @@
 # 薪资显示器（Salary Monitor）
 
-一个轻量的薪资显示器，提供 Windows 桌面版和 Android 手机版：按分钟累计今天的收入，按秒倒数距离下班的时间，并支持完整的薪资与作息设置。
+一个轻量的薪资显示器，提供 Windows 桌面版和 Android 手机版：按分钟累计今天的收入，按秒倒数距离下班的时间，支持完整的薪资与作息设置，并可用首页的小眼睛一键隐藏工资金额。
 
 ![主界面](docs/screenshots/main-working.png)
 
@@ -27,8 +27,9 @@ dist\薪资显示器.exe
 dist\薪资显示器-Android.apk
 ```
 
-- 版本 `1.1.1`（versionCode 3），支持 Android 8.0 及以上。
+- 版本 `1.2.0`（versionCode 4），支持 Android 8.0 及以上。
 - 深色仪表盘、完整设置页，默认参数与 Windows 版一致。
+- v1.2.0 在“今日已赚”右侧增加小眼睛按钮：一键隐藏/显示主金额和日薪、时薪、分钟薪；隐藏状态会记住，重启后保持。
 - 支持“按当月实际工作日计薪”：内置 2026—2027 年法定节假日和调休表，按当月实际工作日计算日薪；默认仍为 21.75 天平均。
 - v1.1.1 修复顶部品牌图标：改用独立透明圆角位图，去掉 Android 8+ 自适应图标带来的方形深色底和四角黑框。修复对比见 [资源渲染对比](docs/android/screenshots/header-icon-fix.png)。
 - 手机端没有系统级窗口置顶，改用全屏显示 + 屏幕常亮。
@@ -55,9 +56,20 @@ Android 版的构建、限制与目录说明见 [android/README.md](android/READ
 
 Android 版还可在设置中开启“按当月实际工作日计薪”：例如 2026 年 11 月有 21 个工作日，日薪为 `33,500 ÷ 21 ≈ ¥1,595.24`；法定节假日不计薪，调休周末正常计薪。
 
-Windows v1.1.0 也提供同名开关，使用同一套 2026—2027 年节假日/调休表；默认仍为 21.75 天平均。
+Windows v1.2.0 也提供同名开关，使用同一套 2026—2027 年节假日/调休表；默认仍为 21.75 天平均。
 
-当前实现截图：[午休态](docs/screenshots/main-lunch.png)、[休息日](docs/screenshots/main-weekend.png)、[设置页](docs/screenshots/settings-default.png)、[实际工作日设置](docs/screenshots/settings-actual.png)、[实际工作日主界面](docs/screenshots/main-actual.png)、[法定节假日](docs/screenshots/main-holiday.png)、[调休上班日](docs/screenshots/main-makeup.png)、[校验失败态](docs/screenshots/settings-validation-error.png)。
+当前实现截图：[工作态](docs/screenshots/main-working.png)、[隐藏金额](docs/screenshots/main-hidden.png)、[午休态](docs/screenshots/main-lunch.png)、[休息日](docs/screenshots/main-weekend.png)、[设置页](docs/screenshots/settings-default.png)、[实际工作日设置](docs/screenshots/settings-actual.png)、[实际工作日主界面](docs/screenshots/main-actual.png)、[法定节假日](docs/screenshots/main-holiday.png)、[调休上班日](docs/screenshots/main-makeup.png)、[校验失败态](docs/screenshots/settings-validation-error.png)。
+
+## 金额隐私显示
+
+Windows 和 Android 首页的“今日已赚”右侧各有一个小眼睛按钮。点击后：
+
+- 主金额显示为 `••••••`，日薪/时薪/分钟薪显示为 `¥••••`，不显示任何工资数字；
+- 图标切换为“眼睛加斜杠”，再次点击恢复真实金额；
+- 隐藏状态写入本地配置，重启应用后保持；默认启动为显示状态；
+- 状态切换不影响工资计算、倒计时和进度，只是遮挡显示。
+
+设置页仍会显示月薪等参数供编辑，本功能只遮挡首页仪表盘。
 
 ## 设置
 
@@ -103,7 +115,7 @@ Windows v1.1.0 也提供同名开关，使用同一套 2026—2027 年节假日/
 ├─ tests/                   # 无第三方依赖的自动测试程序
 ├─ android/                 # Android 原生源码、构建脚本与签名密钥
 │  ├─ app/                  # Java 源码、Manifest、资源与布局
-│  ├─ tests/                # 69 个纯 Java 核心测试
+│  ├─ tests/                # 70 个纯 Java 核心测试
 │  └─ build.ps1             # aapt2 → javac → d8 → 签名
 ├─ assets/                  # Windows 图标与 manifest
 ├─ tools/                   # 图标生成及 UI 自动化验证脚本
@@ -128,7 +140,7 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\test.ps1
 # 只编译、不跑测试
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -SkipTests
 
-# Android：运行 69 个核心测试并构建 APK
+# Android：运行 70 个核心测试并构建 APK
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\android\build.ps1
 ```
 
@@ -157,4 +169,4 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\android\build.
 
 ---
 
-Windows 版：**1.1.0** · Android 版：**1.1.1** · 构建日期：2026-11-11
+Windows 版：**1.2.0** · Android 版：**1.2.0** · 构建日期：2026-11-14

@@ -213,6 +213,49 @@ try {
     if (-not $amount) { throw "Expected main amount 1,052.49 was not found." }
     Log "Main view shows 1,052.49 at fixed 16:28:35."
 
+    Log "Testing the eye button hide/show toggle..."
+    $hideButton = Wait-Button $main "隐藏金额"
+    if (-not $hideButton) { throw "Hide-amount eye button was not found." }
+    Invoke-ButtonElement $hideButton
+    if (-not (Wait-TextContaining $main "••••••")) {
+        throw "Main amount was not masked after clicking the eye button."
+    }
+    if (-not (Wait-TextContaining $main "¥••••")) {
+        throw "Rate strip was not masked after clicking the eye button."
+    }
+    $hiddenPersisted = $false
+    for ($i = 0; $i -lt 20; $i++) {
+        Start-Sleep -Milliseconds 200
+        $hiddenSettings = Read-Settings
+        if ($hiddenSettings -and $hiddenSettings.amountsHidden -eq $true) {
+            $hiddenPersisted = $true
+            break
+        }
+    }
+    if (-not $hiddenPersisted) { throw "Hidden-amount state was not saved." }
+
+    Log "Restarting to verify hidden amounts persist..."
+    $closeHidden = Find-Button $main "退出"
+    Invoke-ButtonElement $closeHidden
+    for ($i = 0; $i -lt 20; $i++) {
+        Start-Sleep -Milliseconds 200
+        if (-not (Get-AppProcess)) { break }
+    }
+    if (Get-AppProcess) { throw "Application did not exit while amounts were hidden." }
+    $currentProcess = Start-App
+    $appPid = $currentProcess.Id
+    $main = [System.Windows.Automation.AutomationElement]::FromHandle($currentProcess.MainWindowHandle)
+    if (-not (Wait-TextContaining $main "••••••")) {
+        throw "Hidden amounts were not restored after restart."
+    }
+    $showButton = Wait-Button $main "显示金额"
+    if (-not $showButton) { throw "Show-amount eye button was not found after restart." }
+    Invoke-ButtonElement $showButton
+    if (-not (Wait-TextContaining $main "1,052.49")) {
+        throw "Main amount was not restored after clicking the eye button again."
+    }
+    Log "Eye button masked, persisted across restart, and restored all salary values."
+
     $settingsButton = Wait-Button $main "设置"
     Invoke-ButtonElement $settingsButton
     $settingsWindow = Wait-SettingsWindow $appPid

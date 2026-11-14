@@ -114,8 +114,9 @@ namespace SalaryMonitor.Core
 
                 if (settings.Version < AppSettings.CurrentVersion)
                 {
-                    // v1 files predate the actual-workday flag; the missing bool
-                    // deserializes as false, so they migrate without losing data.
+                    // v1 files predate the actual-workday flag and v2 files
+                    // predate the hidden-amounts flag; both missing bools
+                    // deserialize as false, so they migrate without losing data.
                     settings.Version = AppSettings.CurrentVersion;
                 }
 

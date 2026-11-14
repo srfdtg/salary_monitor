@@ -11,6 +11,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 public final class Formatters {
+    public static final String HIDDEN_AMOUNT = "••••••";
+    public static final String HIDDEN_MONEY = "¥••••";
+
     private static final DateTimeFormatter TIME_OF_DAY =
             DateTimeFormatter.ofPattern("HH:mm:ss", Locale.US);
 

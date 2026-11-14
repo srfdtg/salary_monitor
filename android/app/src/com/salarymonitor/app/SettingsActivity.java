@@ -321,6 +321,8 @@ public final class SettingsActivity extends Activity {
         settings.setWorkEndMinutes(times[INDEX_WORK_END]);
         settings.setKeepScreenOn(keepScreenOnSwitch.isChecked());
         settings.setActualWorkdaysEnabled(actualWorkdaysSwitch.isChecked());
+        // The visibility toggle lives on the dashboard, not in this form.
+        settings.setAmountsHidden(SettingsRepository.load(this).isAmountsHidden());
 
         SettingsValidator.Result validation = SettingsValidator.validate(settings);
         if (!validation.isValid()) {

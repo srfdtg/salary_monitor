@@ -14,6 +14,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.salarymonitor.app.core.AppSettings;
 import com.salarymonitor.app.core.DayKind;
@@ -55,6 +56,8 @@ public final class MainActivity extends Activity {
     };
 
     private AppSettings settings;
+    private boolean amountsHidden;
+    private ImageButton amountVisibilityButton;
     private TextView statusText;
     private View statusDot;
     private View statusPill;
@@ -82,6 +85,7 @@ public final class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         settings = SettingsRepository.load(this);
+        amountsHidden = settings.isAmountsHidden();
         bindViews();
 
         ImageButton settingsButton = findViewById(R.id.headerSettings);
@@ -91,6 +95,15 @@ public final class MainActivity extends Activity {
                 openSettings();
             }
         });
+
+        amountVisibilityButton = findViewById(R.id.amountVisibilityButton);
+        amountVisibilityButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                toggleAmountVisibility();
+            }
+        });
+        renderAmountVisibility();
 
         updateUi();
     }
@@ -120,7 +133,9 @@ public final class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         settings = SettingsRepository.load(this);
+        amountsHidden = settings.isAmountsHidden();
         applyKeepScreenOn();
+        renderAmountVisibility();
         updateUi();
         handler.removeCallbacks(ticker);
         handler.postDelayed(ticker, 1000L);
@@ -151,12 +166,37 @@ public final class MainActivity extends Activity {
         startActivityForResult(intent, REQUEST_SETTINGS);
     }
 
+    private void toggleAmountVisibility() {
+        amountsHidden = !amountsHidden;
+        settings = settings.copy();
+        settings.setAmountsHidden(amountsHidden);
+        if (!SettingsRepository.save(this, settings)) {
+            Toast.makeText(this, "金额隐藏状态未能保存", Toast.LENGTH_SHORT).show();
+        }
+        renderAmountVisibility();
+        updateUi();
+    }
+
+    private void renderAmountVisibility() {
+        if (amountVisibilityButton == null) {
+            return;
+        }
+        amountVisibilityButton.setImageResource(
+                amountsHidden ? R.drawable.ic_eye_off : R.drawable.ic_eye);
+        String description = getString(
+                amountsHidden ? R.string.show_amount : R.string.hide_amount);
+        amountVisibilityButton.setContentDescription(description);
+        amountVisibilityButton.setTooltipText(description);
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_SETTINGS && resultCode == RESULT_OK) {
             settings = SettingsRepository.load(this);
+            amountsHidden = settings.isAmountsHidden();
             applyKeepScreenOn();
+            renderAmountVisibility();
             updateUi();
         }
     }
@@ -165,21 +205,29 @@ public final class MainActivity extends Activity {
         LocalDateTime now = LocalDateTime.now();
         PaySnapshot snapshot = PayCalculator.calculate(settings, now);
 
-        String amount = Formatters.moneyValue(snapshot.getTodayEarned());
-        amountText.setText(amount);
-        int amountSize;
-        if (amount.length() > 12) {
-            amountSize = 30;
-        } else if (amount.length() > 9) {
-            amountSize = 38;
+        if (amountsHidden) {
+            amountText.setText(Formatters.HIDDEN_AMOUNT);
+            amountText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 48);
+            dailyText.setText(Formatters.HIDDEN_MONEY);
+            hourlyText.setText(Formatters.HIDDEN_MONEY);
+            minuteText.setText(Formatters.HIDDEN_MONEY);
         } else {
-            amountSize = 48;
-        }
-        amountText.setTextSize(TypedValue.COMPLEX_UNIT_SP, amountSize);
+            String amount = Formatters.moneyValue(snapshot.getTodayEarned());
+            amountText.setText(amount);
+            int amountSize;
+            if (amount.length() > 12) {
+                amountSize = 30;
+            } else if (amount.length() > 9) {
+                amountSize = 38;
+            } else {
+                amountSize = 48;
+            }
+            amountText.setTextSize(TypedValue.COMPLEX_UNIT_SP, amountSize);
 
-        dailyText.setText(Formatters.money(snapshot.getDailyWage()));
-        hourlyText.setText(Formatters.money(snapshot.getHourlyWage()));
-        minuteText.setText(Formatters.money(snapshot.getMinuteWage()));
+            dailyText.setText(Formatters.money(snapshot.getDailyWage()));
+            hourlyText.setText(Formatters.money(snapshot.getHourlyWage()));
+            minuteText.setText(Formatters.money(snapshot.getMinuteWage()));
+        }
 
         dateText.setText(Formatters.dateHeader(now));
         clockText.setText(Formatters.timeOfDay(now));

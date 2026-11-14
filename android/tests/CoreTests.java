@@ -329,6 +329,7 @@ public final class CoreTests {
             eq(840, s.getLunchEndMinutes(), "lunch end");
             eq(1140, s.getWorkEndMinutes(), "end");
             truth(s.isKeepScreenOn(), "keep screen on default");
+            falsity(s.isAmountsHidden(), "amounts visible by default");
         });
 
         test("CALC-025 copy preserves all values", () -> {
@@ -340,6 +341,7 @@ public final class CoreTests {
             s.setLunchEndMinutes(780);
             s.setWorkEndMinutes(1080);
             s.setKeepScreenOn(false);
+            s.setAmountsHidden(true);
             AppSettings copy = s.copy();
             eq(s.getMonthlySalary(), copy.getMonthlySalary(), "salary");
             eq(s.getMonthlyWorkDays(), copy.getMonthlyWorkDays(), "days");
@@ -348,6 +350,7 @@ public final class CoreTests {
             eq(s.getLunchEndMinutes(), copy.getLunchEndMinutes(), "lunch end");
             eq(s.getWorkEndMinutes(), copy.getWorkEndMinutes(), "end");
             eq(s.isKeepScreenOn(), copy.isKeepScreenOn(), "keep screen on");
+            eq(s.isAmountsHidden(), copy.isAmountsHidden(), "amounts hidden");
         });
 
         test("CALC-026 weekend check is Saturday/Sunday only", () -> {
@@ -440,6 +443,13 @@ public final class CoreTests {
 
         test("FMT-009 money is clamped only by caller, formatting handles zero", () -> {
             eq("¥0.00", Formatters.money(null), "null amount");
+        });
+
+        test("FMT-010 hidden salary placeholders do not leak digits", () -> {
+            eq("••••••", Formatters.HIDDEN_AMOUNT, "main amount mask");
+            eq("¥••••", Formatters.HIDDEN_MONEY, "rate mask");
+            falsity(Formatters.HIDDEN_AMOUNT.contains("0"), "amount mask has no digit");
+            falsity(Formatters.HIDDEN_MONEY.contains("."), "rate mask has no decimal");
         });
     }
 

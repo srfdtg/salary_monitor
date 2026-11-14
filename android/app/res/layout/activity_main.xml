@@ -161,6 +161,20 @@
                 android:text="按分钟累计"
                 android:textColor="#C7D2FE"
                 android:textSize="9.5sp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <ImageButton
+                android:id="@+id/amountVisibilityButton"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/bg_icon_button"
+                android:contentDescription="@string/hide_amount"
+                android:padding="8dp"
+                android:src="@drawable/ic_eye" />
         </LinearLayout>
 
         <LinearLayout

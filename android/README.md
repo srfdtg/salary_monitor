@@ -3,7 +3,7 @@
 原生 Android（Java）版本，与 Windows 版共享同一套薪资计算规则和默认参数。
 
 - 包名：`com.salarymonitor.app`
-- 版本：`1.1.1`（versionCode 3）
+- 版本：`1.2.0`（versionCode 4）
 - 最低系统：Android 8.0（API 26）
 - 目标系统：Android 14（API 34）
 - 产物：`../dist/薪资显示器-Android.apk`
@@ -22,6 +22,7 @@
   - 2028 年及以后暂无官方表，回退为周一至周五。
 - 设置校验、错误提示、恢复默认
 - 屏幕常亮开关（默认开启）
+- 首页“今日已赚”右侧小眼睛按钮：一键隐藏/显示主金额与日薪、时薪、分钟薪；隐藏状态写入私有配置，重启后保持
 - v1.1.1 顶部品牌图标使用独立的透明圆角位图，不再直接复用自适应启动图标，避免图标四角出现方形深色底/黑框
 
 Android 没有普通应用窗口置顶能力，因此没有实现 Windows 版的“窗口置顶”；全屏显示 + 屏幕常亮是这一版的替代方案。
@@ -56,7 +57,7 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\android\build.
 
 脚本执行顺序：
 
-1. 编译并运行 69 个纯 JVM 核心测试。
+1. 编译并运行 70 个纯 JVM 核心测试。
 2. 编译资源、链接 Manifest。
 3. 编译 Java、生成 dex。
 4. 对齐、签名、校验签名。
@@ -92,13 +93,14 @@ android/
         WorkdayCalendar.java   # 2026—2027 节假日/调休表
       data/SettingsRepository.java
       ui/                      # 渐变大金额、进度条
-  tests/CoreTests.java         # 69 个测试
+  tests/CoreTests.java         # 70 个测试
   build.ps1
   signing/salarymonitor.jks
 ```
 
 ## 版本记录
 
+- v1.2.0：首页增加小眼睛金额隐私开关，隐藏状态持久化；版本号 4，计算与默认参数不变。
 - v1.1.1：修复顶部品牌图标的自适应图标方形底色/四角黑框；版本号 3，计算与配置不变。
 - v1.1.0：增加“按当月实际工作日计薪”、2026—2027 年节假日/调休表。
 - v1.0.x：基础仪表盘、设置、屏幕常亮。

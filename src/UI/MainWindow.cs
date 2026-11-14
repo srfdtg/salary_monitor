@@ -39,6 +39,7 @@ namespace SalaryMonitor.UI
         private Border _progressTrack;
         private Border _progressFill;
         private IconButton _pinButton;
+        private IconButton _eyeButton;
 
         private static readonly SolidColorBrush WorkBg = Theme.Frozen(32, 45, 212, 191);
         private static readonly SolidColorBrush WorkBorder = Theme.Frozen(55, 45, 212, 191);
@@ -278,11 +279,14 @@ namespace SalaryMonitor.UI
 
         private UIElement BuildHeroLabel()
         {
-            StackPanel row = new StackPanel();
-            row.Orientation = Orientation.Horizontal;
-            row.VerticalAlignment = VerticalAlignment.Center;
+            Grid row = new Grid();
             row.Margin = new Thickness(0, 15, 0, 0);
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
+            StackPanel labels = new StackPanel();
+            labels.Orientation = Orientation.Horizontal;
+            labels.VerticalAlignment = VerticalAlignment.Center;
             TextBlock label = Theme.CnText("今日已赚", 11, Theme.TextSecondary, FontWeights.Normal);
 
             Border tag = new Border();
@@ -297,8 +301,19 @@ namespace SalaryMonitor.UI
                 Theme.Frozen(255, 199, 210, 254), FontWeights.Normal);
             tag.Child = tagText;
 
-            row.Children.Add(label);
-            row.Children.Add(tag);
+            labels.Children.Add(label);
+            labels.Children.Add(tag);
+            row.Children.Add(labels);
+
+            _eyeButton = new IconButton(
+                _settings.AmountsHidden ? AppIcons.EyeOff : AppIcons.Eye,
+                _settings.AmountsHidden ? "显示金额" : "隐藏金额", false);
+            _eyeButton.HorizontalAlignment = HorizontalAlignment.Right;
+            _eyeButton.VerticalAlignment = VerticalAlignment.Center;
+            _eyeButton.Click += OnEyeClick;
+            row.Children.Add(_eyeButton);
+            Grid.SetColumn(_eyeButton, 1);
+
             return row;
         }
 
@@ -535,23 +550,34 @@ namespace SalaryMonitor.UI
             DateTime now = AppClock.Now;
             _snapshot = PayCalculator.Calculate(_settings, now);
 
-            string amount = Formatters.MoneyValue(_snapshot.TodayEarned);
-            _amountText.Text = amount;
-            if (amount.Length > 12)
+            if (_settings.AmountsHidden)
             {
-                _amountText.FontSize = 32;
-            }
-            else if (amount.Length > 9)
-            {
-                _amountText.FontSize = 42;
+                _amountText.Text = Formatters.HiddenAmount;
+                _amountText.FontSize = 50;
+                _dailyText.Text = Formatters.HiddenMoney;
+                _hourlyText.Text = Formatters.HiddenMoney;
+                _minuteText.Text = Formatters.HiddenMoney;
             }
             else
             {
-                _amountText.FontSize = 50;
+                string amount = Formatters.MoneyValue(_snapshot.TodayEarned);
+                _amountText.Text = amount;
+                if (amount.Length > 12)
+                {
+                    _amountText.FontSize = 32;
+                }
+                else if (amount.Length > 9)
+                {
+                    _amountText.FontSize = 42;
+                }
+                else
+                {
+                    _amountText.FontSize = 50;
+                }
+                _dailyText.Text = Formatters.Money(_snapshot.DailyWage);
+                _hourlyText.Text = Formatters.Money(_snapshot.HourlyWage);
+                _minuteText.Text = Formatters.Money(_snapshot.MinuteWage);
             }
-            _dailyText.Text = Formatters.Money(_snapshot.DailyWage);
-            _hourlyText.Text = Formatters.Money(_snapshot.HourlyWage);
-            _minuteText.Text = Formatters.Money(_snapshot.MinuteWage);
 
             _dateText.Text = Formatters.DateHeader(now);
             _clockText.Text = Formatters.TimeOfDay(now);
@@ -762,6 +788,38 @@ namespace SalaryMonitor.UI
             UpdateUi();
         }
 
+        private void OnEyeClick(object sender, RoutedEventArgs e)
+        {
+            _settings = _settings.Clone();
+            _settings.AmountsHidden = !_settings.AmountsHidden;
+            UpdateUi();
+            UpdateEyeButton();
+
+            SettingsSaveResult save = _store.Save(_settings);
+            if (!save.Success)
+            {
+                _footerError = true;
+                _footerHint.Text = "金额隐藏状态未能保存";
+                _footerHint.Foreground = Theme.Danger;
+            }
+            else
+            {
+                _footerError = false;
+                UpdateFooterHint();
+            }
+        }
+
+        private void UpdateEyeButton()
+        {
+            if (_eyeButton == null)
+            {
+                return;
+            }
+            bool hidden = _settings.AmountsHidden;
+            _eyeButton.SetIcon(hidden ? AppIcons.EyeOff : AppIcons.Eye);
+            _eyeButton.SetTooltip(hidden ? "显示金额" : "隐藏金额");
+        }
+
         private void OnSettingsClick(object sender, RoutedEventArgs e)
         {
             Program.Log("OnSettingsClick begin");
@@ -780,6 +838,7 @@ namespace SalaryMonitor.UI
             _settings = settingsWindow.SavedSettings;
             Topmost = _settings.AlwaysOnTop;
             UpdatePinButton();
+            UpdateEyeButton();
             _footerError = false;
             UpdateUi();
         }
@@ -799,5 +858,15 @@ namespace SalaryMonitor.UI
         {
             Close();
         }
+
+#if UI_TEST_BUILD
+        internal void SetAmountsHiddenForTest(bool hidden)
+        {
+            _settings = _settings.Clone();
+            _settings.AmountsHidden = hidden;
+            UpdateUi();
+            UpdateEyeButton();
+        }
+#endif
     }
 }

@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $exe = Join-Path $root "build\SalaryMonitor.UITest.exe"
@@ -40,6 +40,15 @@ foreach ($state in $states) {
     }
     Copy-Item -LiteralPath $main -Destination (Join-Path $docsShots $state.Name) -Force
     Write-Output ("Captured {0} -> {1}" -f $state.Time, $state.Name)
+
+    if ($state.Name -eq "main-working.png") {
+        $hidden = Join-Path $outputRoot "main-hidden.png"
+        if (-not (Test-Path -LiteralPath $hidden)) {
+            throw "Hidden-amount screenshot was not produced for $($state.Time)."
+        }
+        Copy-Item -LiteralPath $hidden -Destination (Join-Path $docsShots "main-hidden.png") -Force
+        Write-Output ("Captured {0} -> main-hidden.png" -f $state.Time)
+    }
 }
 
 Remove-Item Env:\SALARY_MONITOR_TEST_NOW -ErrorAction SilentlyContinue

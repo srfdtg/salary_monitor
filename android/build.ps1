@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [switch]$SkipTests
 )
@@ -14,7 +14,10 @@ $androidJar = Join-Path $sdk 'platforms\android-34\android.jar'
 $app = Join-Path $root 'app'
 $build = Join-Path $root 'build'
 $dist = Join-Path $workspace 'dist'
-$finalName = '薪资显示器-Android.apk'
+# Build the Chinese filename from code points so this script does not depend on
+# its source encoding or a UTF-8 BOM.
+$finalName = [string]::Concat(
+    [char]0x85AA, [char]0x8D44, [char]0x663E, [char]0x793A, [char]0x5668) + '-Android.apk'
 $signedAscii = Join-Path $build 'SalaryMonitor-Android.apk'
 
 $required = @(
@@ -95,8 +98,8 @@ Invoke-Native $aapt2 @(
     '--java', $gen,
     '--min-sdk-version', '26',
     '--target-sdk-version', '34',
-    '--version-code', '3',
-    '--version-name', '1.1.1'
+    '--version-code', '4',
+    '--version-name', '1.2.0'
 ) 'link resources and manifest'
 
 $sources = @(Get-ChildItem -LiteralPath (Join-Path $app 'src') -Recurse -Filter '*.java' | ForEach-Object FullName)
