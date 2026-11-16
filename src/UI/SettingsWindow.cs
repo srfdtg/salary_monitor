@@ -60,6 +60,7 @@ namespace SalaryMonitor.UI
         private readonly List<SettingsField> _fields = new List<SettingsField>();
         private SettingsField _salaryField;
         private SettingsField _daysField;
+        private SettingsField _paydayField;
         private SettingsField _startField;
         private SettingsField _lunchStartField;
         private SettingsField _lunchEndField;
@@ -68,6 +69,7 @@ namespace SalaryMonitor.UI
         private ToggleSwitch _topmostToggle;
         private ToggleSwitch _actualWorkdaysToggle;
         private TextBlock _actualWorkdaysHint;
+        private TextBlock _paydayHint;
         private ColumnDefinition _daysGapColumn;
         private ColumnDefinition _daysColumn;
         private TextBlock _incomePreview;
@@ -86,7 +88,7 @@ namespace SalaryMonitor.UI
 
             Title = "设置 · 薪资显示器";
             Width = 604;
-            Height = 700;
+            Height = 760;
             WindowStyle = WindowStyle.None;
             ResizeMode = ResizeMode.NoResize;
             AllowsTransparency = true;
@@ -155,7 +157,7 @@ namespace SalaryMonitor.UI
             kicker.FontWeight = FontWeights.SemiBold;
             TextBlock title = Theme.CnText("设置", 27, Theme.TextPrimary, FontWeights.SemiBold);
             title.Margin = new Thickness(0, 5, 0, 2);
-            TextBlock subtitle = Theme.CnText("参数保存后立即生效，今日工资将按新规则重新估算",
+            TextBlock subtitle = Theme.CnText("参数保存后立即生效，今日与本月工资将按新规则重新估算",
                 9.5, Theme.TextSecondary, FontWeights.Normal);
             titleStack.Children.Add(kicker);
             titleStack.Children.Add(title);
@@ -275,6 +277,28 @@ namespace SalaryMonitor.UI
             grid.Children.Add(_daysField.Root);
             Grid.SetColumn(_daysField.Root, 2);
             content.Children.Add(grid);
+
+            Grid paydayRow = new Grid();
+            paydayRow.Margin = new Thickness(14, 12, 14, 0);
+            paydayRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+            paydayRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            _paydayField = CreateField("Payday", "发薪日（可选）",
+                _original.Payday >= 1 && _original.Payday <= 31
+                    ? _original.Payday.ToString(CultureInfo.InvariantCulture)
+                    : string.Empty,
+                "日", 2, false);
+            _paydayField.Root.Width = 150;
+            paydayRow.Children.Add(_paydayField.Root);
+
+            _paydayHint = Theme.CnText("留空不显示；遇短月按当月最后一天",
+                8.5, Theme.TextMuted, FontWeights.Normal);
+            _paydayHint.Margin = new Thickness(12, 18, 0, 0);
+            _paydayHint.VerticalAlignment = VerticalAlignment.Top;
+            _paydayHint.TextWrapping = TextWrapping.Wrap;
+            paydayRow.Children.Add(_paydayHint);
+            Grid.SetColumn(_paydayHint, 1);
+            content.Children.Add(paydayRow);
 
             _actualWorkdaysHint = Theme.CnText(string.Empty, 8.5, Theme.TextMuted,
                 FontWeights.Normal);
@@ -506,7 +530,7 @@ namespace SalaryMonitor.UI
             Program.Log("SettingsWindow Loaded");
             Rect workArea = SystemParameters.WorkArea;
             Width = Math.Min(604, Math.Max(520, workArea.Width - 12));
-            Height = Math.Min(700, Math.Max(430, workArea.Height - 12));
+            Height = Math.Min(760, Math.Max(470, workArea.Height - 12));
             if (Owner != null)
             {
                 Left = Owner.Left + Math.Max(0, (Owner.Width - Width) / 2);
@@ -589,6 +613,7 @@ namespace SalaryMonitor.UI
             int lunchStart = 0;
             int lunchEnd = 0;
             int end = 0;
+            int payday = 0;
             bool actual = _actualWorkdaysToggle != null && _actualWorkdaysToggle.IsChecked == true;
 
             if (!Formatters.TryParseNumber(_salaryField.Input.Text, out salary))
@@ -638,6 +663,18 @@ namespace SalaryMonitor.UI
                 parseOk = false;
             }
 
+            string paydayText = _paydayField.Input.Text.Trim();
+            if (paydayText.Length > 0)
+            {
+                if (!Int32.TryParse(paydayText, NumberStyles.None,
+                    CultureInfo.InvariantCulture, out payday) ||
+                    payday < 1 || payday > 31)
+                {
+                    _paydayField.ShowError("请输入 1–31，留空表示不设置");
+                    parseOk = false;
+                }
+            }
+
             candidate = new AppSettings();
             candidate.Version = AppSettings.CurrentVersion;
             candidate.MonthlySalary = salary;
@@ -648,6 +685,8 @@ namespace SalaryMonitor.UI
             candidate.WorkEndMinutes = end;
             candidate.AlwaysOnTop = _topmostToggle.IsChecked == true;
             candidate.ActualWorkdaysEnabled = actual;
+            candidate.AmountsHidden = _original.AmountsHidden;
+            candidate.Payday = payday;
 
             if (parseOk)
             {
@@ -707,6 +746,7 @@ namespace SalaryMonitor.UI
             AppSettings defaults = AppSettings.CreateDefault();
             _salaryField.Input.Text = Formatters.MoneyValue(defaults.MonthlySalary);
             _daysField.Input.Text = Formatters.DaysInput(defaults.MonthlyWorkDays);
+            _paydayField.Input.Text = string.Empty;
             _startField.Input.Text = Formatters.ClockHHmm(defaults.WorkStartMinutes);
             _lunchStartField.Input.Text = Formatters.ClockHHmm(defaults.LunchStartMinutes);
             _lunchEndField.Input.Text = Formatters.ClockHHmm(defaults.LunchEndMinutes);
@@ -763,6 +803,7 @@ namespace SalaryMonitor.UI
 
         private void UpdatePreview()
         {
+            UpdatePaydayHint();
             if (_incomePreview == null || _schedulePreview == null)
             {
                 return;
@@ -778,6 +819,48 @@ namespace SalaryMonitor.UI
 
             _incomePreview.Text = BuildIncomePreviewText();
             _schedulePreview.Text = BuildSchedulePreviewText();
+        }
+
+        private void UpdatePaydayHint()
+        {
+            if (_paydayHint == null || _paydayField == null)
+            {
+                return;
+            }
+
+            string text = _paydayField.Input.Text.Trim();
+            if (text.Length == 0)
+            {
+                _paydayHint.Text = "留空不显示；遇短月按当月最后一天";
+                _paydayHint.Foreground = Theme.TextMuted;
+                return;
+            }
+
+            int payday;
+            if (!Int32.TryParse(text, NumberStyles.None,
+                CultureInfo.InvariantCulture, out payday) ||
+                payday < 1 || payday > 31)
+            {
+                _paydayHint.Text = "请输入 1–31，留空表示不设置";
+                _paydayHint.Foreground = Theme.Danger;
+                return;
+            }
+
+            AppSettings preview = _original.Clone();
+            preview.Payday = payday;
+            MonthSnapshot month = MonthCalculator.Calculate(preview, AppClock.Now);
+            if (month.IsPaydayToday)
+            {
+                _paydayHint.Text = "今天发薪 · 按自然日估算";
+            }
+            else
+            {
+                _paydayHint.Text = "下次发薪 " +
+                    Formatters.MonthDay(month.NextPayday.Value) +
+                    " · 还有 " +
+                    month.DaysUntilPayday.ToString(CultureInfo.InvariantCulture) + " 天";
+            }
+            _paydayHint.Foreground = Theme.TextMuted;
         }
 
         private bool TryBuildPreviewSettings(out AppSettings preview)
@@ -830,6 +913,8 @@ namespace SalaryMonitor.UI
             candidate.WorkEndMinutes = end;
             candidate.AlwaysOnTop = _topmostToggle != null && _topmostToggle.IsChecked == true;
             candidate.ActualWorkdaysEnabled = actual;
+            candidate.AmountsHidden = _original.AmountsHidden;
+            candidate.Payday = 0;
 
             if (!SettingsValidator.Validate(candidate).IsValid)
             {

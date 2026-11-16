@@ -2,6 +2,8 @@ import com.salarymonitor.app.core.AppSettings;
 import com.salarymonitor.app.core.DayKind;
 import com.salarymonitor.app.core.DayPhase;
 import com.salarymonitor.app.core.Formatters;
+import com.salarymonitor.app.core.MonthCalculator;
+import com.salarymonitor.app.core.MonthSnapshot;
 import com.salarymonitor.app.core.PayCalculator;
 import com.salarymonitor.app.core.PaySnapshot;
 import com.salarymonitor.app.core.PhaseText;
@@ -93,6 +95,7 @@ public final class CoreTests {
         validation();
         phaseLabels();
         actualWorkdays();
+        monthCalculations();
 
         System.out.println();
         System.out.println("------------------------------------------------------------");
@@ -330,6 +333,8 @@ public final class CoreTests {
             eq(1140, s.getWorkEndMinutes(), "end");
             truth(s.isKeepScreenOn(), "keep screen on default");
             falsity(s.isAmountsHidden(), "amounts visible by default");
+            eq(0, s.getPayday(), "payday unset by default");
+            eq(4, AppSettings.CURRENT_VERSION, "current config version");
         });
 
         test("CALC-025 copy preserves all values", () -> {
@@ -342,6 +347,7 @@ public final class CoreTests {
             s.setWorkEndMinutes(1080);
             s.setKeepScreenOn(false);
             s.setAmountsHidden(true);
+            s.setPayday(15);
             AppSettings copy = s.copy();
             eq(s.getMonthlySalary(), copy.getMonthlySalary(), "salary");
             eq(s.getMonthlyWorkDays(), copy.getMonthlyWorkDays(), "days");
@@ -351,6 +357,7 @@ public final class CoreTests {
             eq(s.getWorkEndMinutes(), copy.getWorkEndMinutes(), "end");
             eq(s.isKeepScreenOn(), copy.isKeepScreenOn(), "keep screen on");
             eq(s.isAmountsHidden(), copy.isAmountsHidden(), "amounts hidden");
+            eq(s.getPayday(), copy.getPayday(), "payday");
         });
 
         test("CALC-026 weekend check is Saturday/Sunday only", () -> {
@@ -726,6 +733,181 @@ public final class CoreTests {
         test("FMT-010 month label", () -> {
             eq("2026年11月", Formatters.monthLabel(2026, 11), "month");
             eq("2027年2月", Formatters.monthLabel(LocalDate.of(2027, 2, 5)), "month date");
+        });
+    }
+
+    private static void monthCalculations() {
+        test("MONTH-001 November 5 mid-afternoon month-to-date", () -> {
+            MonthSnapshot s = MonthCalculator.calculate(AppSettings.createDefault(),
+                    at(LocalDate.of(2026, 11, 5), 16, 28, 35));
+            eq(21, s.getTotalWorkdays(), "total workdays");
+            eq(3, s.getCompletedFullWorkdays(), "completed full workdays");
+            near(3.683333, s.getCompletedWorkdays().doubleValue(), 0.000001,
+                    "completed workdays");
+            eq(328, s.getTodayCompletedPaidMinutes(), "today completed minutes");
+            eq(480, s.getTodayTotalPaidMinutes(), "today total minutes");
+            eq("¥5,673.18", Formatters.money(s.getMonthEarned()), "month earned");
+            eq("17.5%", Formatters.progress(s.getProgress()), "progress");
+            eq("¥1,540.23", Formatters.money(s.getDailyWage()), "daily wage");
+        });
+
+        test("MONTH-002 November 5 after work includes the full day", () -> {
+            MonthSnapshot s = MonthCalculator.calculate(AppSettings.createDefault(),
+                    at(LocalDate.of(2026, 11, 5), 19, 0, 0));
+            eq(3, s.getCompletedFullWorkdays(), "completed full workdays");
+            eq(0, new BigDecimal("4").compareTo(s.getCompletedWorkdays()),
+                    "completed workdays");
+            eq("¥6,160.92", Formatters.money(s.getMonthEarned()), "month earned");
+            eq("19%", Formatters.progress(s.getProgress()), "progress");
+        });
+
+        test("MONTH-003 November 1 Sunday has no month earnings yet", () -> {
+            MonthSnapshot s = MonthCalculator.calculate(AppSettings.createDefault(),
+                    at(LocalDate.of(2026, 11, 1), 12, 0, 0));
+            eq(0, s.getCompletedFullWorkdays(), "completed full workdays");
+            eq(0, BigDecimal.ZERO.compareTo(s.getCompletedWorkdays()), "completed days");
+            eq("¥0.00", Formatters.money(s.getMonthEarned()), "month earned");
+            eq("0%", Formatters.progress(s.getProgress()), "progress");
+        });
+
+        test("MONTH-004 actual mode uses the real workday count", () -> {
+            AppSettings settings = AppSettings.createDefault();
+            settings.setActualWorkdaysEnabled(true);
+            MonthSnapshot s = MonthCalculator.calculate(settings,
+                    at(LocalDate.of(2026, 11, 5), 16, 28, 35));
+            truth(s.isActualWorkdays(), "actual flag");
+            truth(s.isCalendarDataAvailable(), "calendar data");
+            eq(21, s.getTotalWorkdays(), "total workdays");
+            eq("¥1,595.24", Formatters.money(s.getDailyWage()), "daily wage");
+            eq("¥5,875.79", Formatters.money(s.getMonthEarned()), "month earned");
+            eq("17.5%", Formatters.progress(s.getProgress()), "progress");
+        });
+
+        test("MONTH-005 actual mode month end equals monthly salary", () -> {
+            AppSettings settings = AppSettings.createDefault();
+            settings.setActualWorkdaysEnabled(true);
+            MonthSnapshot s = MonthCalculator.calculate(settings,
+                    at(LocalDate.of(2026, 12, 31), 19, 0, 0));
+            eq(23, s.getTotalWorkdays(), "total workdays");
+            eq("¥33,500.00", Formatters.money(s.getMonthEarned()), "month earned");
+            eq("100%", Formatters.progress(s.getProgress()), "progress");
+        });
+
+        test("MONTH-006 average mode December can exceed monthly salary", () -> {
+            MonthSnapshot s = MonthCalculator.calculate(AppSettings.createDefault(),
+                    at(LocalDate.of(2026, 12, 31), 19, 0, 0));
+            eq(23, s.getTotalWorkdays(), "total workdays");
+            eq("¥35,425.29", Formatters.money(s.getMonthEarned()), "month earned");
+            eq("100%", Formatters.progress(s.getProgress()), "progress");
+        });
+
+        test("MONTH-007 actual mode skips National Day holidays", () -> {
+            AppSettings settings = AppSettings.createDefault();
+            settings.setActualWorkdaysEnabled(true);
+            MonthSnapshot s = MonthCalculator.calculate(settings,
+                    at(LocalDate.of(2026, 10, 9), 19, 0, 0));
+            eq(18, s.getTotalWorkdays(), "total workdays");
+            eq(1, s.getCompletedFullWorkdays(), "completed full workdays");
+            eq(0, new BigDecimal("2").compareTo(s.getCompletedWorkdays()),
+                    "completed workdays");
+            eq("¥3,722.22", Formatters.money(s.getMonthEarned()), "month earned");
+            eq("11.1%", Formatters.progress(s.getProgress()), "progress");
+        });
+
+        test("MONTH-008 payday before this month's date moves to next month", () -> {
+            AppSettings settings = AppSettings.createDefault();
+            settings.setPayday(15);
+            MonthSnapshot s = MonthCalculator.calculate(settings,
+                    at(LocalDate.of(2026, 11, 16), 10, 0, 0));
+            truth(s.isPaydayConfigured(), "configured");
+            eq(LocalDate.of(2026, 12, 15), s.getNextPayday(), "next date");
+            eq(29, s.getDaysUntilPayday(), "days");
+            falsity(s.isPaydayToday(), "not today");
+        });
+
+        test("MONTH-009 payday today has zero countdown", () -> {
+            AppSettings settings = AppSettings.createDefault();
+            settings.setPayday(16);
+            MonthSnapshot s = MonthCalculator.calculate(settings,
+                    at(LocalDate.of(2026, 11, 16), 10, 0, 0));
+            eq(LocalDate.of(2026, 11, 16), s.getNextPayday(), "next date");
+            eq(0, s.getDaysUntilPayday(), "days");
+            truth(s.isPaydayToday(), "today");
+        });
+
+        test("MONTH-010 payday tomorrow is one day away", () -> {
+            AppSettings settings = AppSettings.createDefault();
+            settings.setPayday(17);
+            MonthSnapshot s = MonthCalculator.calculate(settings,
+                    at(LocalDate.of(2026, 11, 16), 10, 0, 0));
+            eq(LocalDate.of(2026, 11, 17), s.getNextPayday(), "next date");
+            eq(1, s.getDaysUntilPayday(), "days");
+            falsity(s.isPaydayToday(), "not today");
+        });
+
+        test("MONTH-011 payday 31 clamps to the short month's last day", () -> {
+            AppSettings settings = AppSettings.createDefault();
+            settings.setPayday(31);
+            MonthSnapshot before = MonthCalculator.calculate(settings,
+                    at(LocalDate.of(2027, 2, 27), 10, 0, 0));
+            MonthSnapshot today = MonthCalculator.calculate(settings,
+                    at(LocalDate.of(2027, 2, 28), 10, 0, 0));
+            eq(LocalDate.of(2027, 2, 28), before.getNextPayday(), "before date");
+            eq(1, before.getDaysUntilPayday(), "before days");
+            truth(today.isPaydayToday(), "clamped today");
+            eq(0, today.getDaysUntilPayday(), "today days");
+        });
+
+        test("MONTH-012 leap year payday 31 clamps to February 29", () -> {
+            AppSettings settings = AppSettings.createDefault();
+            settings.setPayday(31);
+            MonthSnapshot s = MonthCalculator.calculate(settings,
+                    at(LocalDate.of(2028, 2, 29), 10, 0, 0));
+            truth(s.isPaydayToday(), "leap day");
+            eq(LocalDate.of(2028, 2, 29), s.getNextPayday(), "leap date");
+        });
+
+        test("MONTH-013 unset payday has no countdown", () -> {
+            MonthSnapshot s = MonthCalculator.calculate(AppSettings.createDefault(),
+                    at(LocalDate.of(2026, 11, 16), 10, 0, 0));
+            falsity(s.isPaydayConfigured(), "not configured");
+            eq(null, s.getNextPayday(), "no next date");
+            eq(0, s.getDaysUntilPayday(), "days");
+        });
+
+        test("MONTH-014 payday at month boundary rolls into January", () -> {
+            AppSettings settings = AppSettings.createDefault();
+            settings.setPayday(1);
+            MonthSnapshot s = MonthCalculator.calculate(settings,
+                    at(LocalDate.of(2026, 12, 31), 23, 59, 0));
+            eq(LocalDate.of(2027, 1, 1), s.getNextPayday(), "next date");
+            eq(1, s.getDaysUntilPayday(), "days");
+        });
+
+        test("MONTH-015 month helpers and formatting", () -> {
+            eq(21, MonthCalculator.countWorkdays(2026, 11, false), "average November");
+            eq(21, MonthCalculator.countWorkdays(2026, 11, true), "actual November");
+            eq(18, MonthCalculator.countWorkdays(2026, 10, true), "actual October");
+            eq(LocalDate.of(2027, 2, 28),
+                    MonthCalculator.paydayInMonth(2027, 2, 31), "short month");
+            eq(LocalDate.of(2028, 2, 29),
+                    MonthCalculator.paydayInMonth(2028, 2, 31), "leap month");
+            eq("10.7", Formatters.workdaysValue(new BigDecimal("10.6833")),
+                    "workdays value");
+            eq("21", Formatters.workdaysValue(new BigDecimal("21")), "whole workdays");
+            eq("12月15日", Formatters.monthDay(LocalDate.of(2026, 12, 15)), "month day");
+        });
+
+        test("MONTH-016 payday is validated and copied", () -> {
+            AppSettings settings = AppSettings.createDefault();
+            settings.setPayday(31);
+            eq(31, settings.copy().getPayday(), "copy");
+            settings.setPayday(32);
+            falsity(SettingsValidator.validate(settings).isValid(), "over 31");
+            settings.setPayday(-1);
+            falsity(SettingsValidator.validate(settings).isValid(), "negative");
+            settings.setPayday(0);
+            truth(SettingsValidator.validate(settings).isValid(), "unset is valid");
         });
     }
 }

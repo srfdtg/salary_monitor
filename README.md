@@ -1,6 +1,6 @@
 # 薪资显示器（Salary Monitor）
 
-一个轻量的薪资显示器，提供 Windows 桌面版和 Android 手机版：按分钟累计今天的收入，按秒倒数距离下班的时间，支持完整的薪资与作息设置，并可用首页的小眼睛一键隐藏工资金额。
+一个轻量的薪资显示器，提供 Windows 桌面版和 Android 手机版：按分钟累计今天的收入，按秒倒数距离下班的时间；v1.3 起还可切换到“本月”，查看本月累计、工作日进度和发薪日倒计时，并可用小眼睛一键隐藏工资金额。
 
 ![主界面](docs/screenshots/main-working.png)
 
@@ -27,9 +27,10 @@ dist\薪资显示器.exe
 dist\薪资显示器-Android.apk
 ```
 
-- 版本 `1.2.0`（versionCode 4），支持 Android 8.0 及以上。
+- 版本 `1.3.0`（versionCode 5），支持 Android 8.0 及以上。
 - 深色仪表盘、完整设置页，默认参数与 Windows 版一致。
-- v1.2.0 在“今日已赚”右侧增加小眼睛按钮：一键隐藏/显示主金额和日薪、时薪、分钟薪；隐藏状态会记住，重启后保持。
+- v1.3.0 增加“今日 / 本月”双视图：本月累计、本月工作日进度、本月日薪、本月工作日、本月已过天数和发薪日倒计时。
+- v1.2.0 起提供小眼睛按钮：一键隐藏/显示今日和本月的主金额与日薪、时薪、分钟薪；隐藏状态会记住，重启后保持。
 - 支持“按当月实际工作日计薪”：内置 2026—2027 年法定节假日和调休表，按当月实际工作日计算日薪；默认仍为 21.75 天平均。
 - v1.1.1 修复顶部品牌图标：改用独立透明圆角位图，去掉 Android 8+ 自适应图标带来的方形深色底和四角黑框。修复对比见 [资源渲染对比](docs/android/screenshots/header-icon-fix.png)。
 - 手机端没有系统级窗口置顶，改用全屏显示 + 屏幕常亮。
@@ -56,15 +57,25 @@ Android 版的构建、限制与目录说明见 [android/README.md](android/READ
 
 Android 版还可在设置中开启“按当月实际工作日计薪”：例如 2026 年 11 月有 21 个工作日，日薪为 `33,500 ÷ 21 ≈ ¥1,595.24`；法定节假日不计薪，调休周末正常计薪。
 
-Windows v1.2.0 也提供同名开关，使用同一套 2026—2027 年节假日/调休表；默认仍为 21.75 天平均。
+Windows v1.3.0 也提供同名开关，使用同一套 2026—2027 年节假日/调休表；默认仍为 21.75 天平均。
 
-当前实现截图：[工作态](docs/screenshots/main-working.png)、[隐藏金额](docs/screenshots/main-hidden.png)、[午休态](docs/screenshots/main-lunch.png)、[休息日](docs/screenshots/main-weekend.png)、[设置页](docs/screenshots/settings-default.png)、[实际工作日设置](docs/screenshots/settings-actual.png)、[实际工作日主界面](docs/screenshots/main-actual.png)、[法定节假日](docs/screenshots/main-holiday.png)、[调休上班日](docs/screenshots/main-makeup.png)、[校验失败态](docs/screenshots/settings-validation-error.png)。
+### 本月视图
+
+主界面顶部有“今日 / 本月”切换：
+
+- **本月已赚**：本月已完整结束的计薪工作日 × 日薪 + 今日实时已赚。
+- **本月工作日进度**：已完成工作日 / 本月总工作日，今日按有效分钟折算，例如 `5.7 / 21 天`。
+- **发薪日倒计时**：设置每月发薪日（1–31，可选）后显示“距下次发薪 6 天”和下次发薪日期；短月按当月最后一天，不自动顺延周末/节假日。
+- 本月日薪、本月工作日、本月已过天数以三栏指标展示。
+- 平均模式下本月累计是“按日薪累计估算”，月末可能不等于月薪（例如 2026 年 12 月有 23 个工作日）；需要月末严格等于月薪时可开启“按当月实际工作日计薪”。
+
+当前实现截图：[工作态](docs/screenshots/main-working.png)、[隐藏金额](docs/screenshots/main-hidden.png)、[本月视图](docs/screenshots/month.png)、[本月隐藏金额](docs/screenshots/month-hidden.png)、[午休态](docs/screenshots/main-lunch.png)、[休息日](docs/screenshots/main-weekend.png)、[设置页](docs/screenshots/settings-default.png)、[实际工作日设置](docs/screenshots/settings-actual.png)、[实际工作日主界面](docs/screenshots/main-actual.png)、[法定节假日](docs/screenshots/main-holiday.png)、[调休上班日](docs/screenshots/main-makeup.png)、[校验失败态](docs/screenshots/settings-validation-error.png)。
 
 ## 金额隐私显示
 
-Windows 和 Android 首页的“今日已赚”右侧各有一个小眼睛按钮。点击后：
+Windows 和 Android 首页顶部（“今日 / 本月”页签右侧）各有一个小眼睛按钮。点击后：
 
-- 主金额显示为 `••••••`，日薪/时薪/分钟薪显示为 `¥••••`，不显示任何工资数字；
+- 今日或本月的主金额显示为 `••••••`，日薪/时薪/分钟薪显示为 `¥••••`，不显示任何工资数字；
 - 图标切换为“眼睛加斜杠”，再次点击恢复真实金额；
 - 隐藏状态写入本地配置，重启应用后保持；默认启动为显示状态；
 - 状态切换不影响工资计算、倒计时和进度，只是遮挡显示。
@@ -80,6 +91,7 @@ Windows 和 Android 首页的“今日已赚”右侧各有一个小眼睛按钮
 | 月薪 | 33,500.00 元 | 大于 0，且不超过 9,999,999.99 |
 | 月计薪天数 | 21.75 天 | 大于 0，且不超过 31；实际工作日模式下隐藏并保留 |
 | 按当月实际工作日计薪 | 关闭 | 开启后按 2026—2027 年法定节假日/调休表计算 |
+| 发薪日（可选） | 未设置 | 1–31；留空不显示倒计时；短月按当月最后一天 |
 | 上班时间 | 09:30 | `H:mm` 或 `HH:mm` |
 | 午休开始 | 12:30 | 必须晚于上班时间 |
 | 午休结束 | 14:00 | 必须晚于午休开始 |
@@ -107,15 +119,15 @@ Windows 和 Android 首页的“今日已赚”右侧各有一个小眼睛按钮
 ```text
 .
 ├─ src/                     # WPF 应用源码（纯 C#，无 XAML）
-│  ├─ Core/                 # 计算、校验、格式化、配置存储
-│  ├─ UI/                   # 主窗口、设置页、主题与自绘控件
+│  ├─ Core/                 # 今日/本月计算、校验、格式化、配置存储
+│  ├─ UI/                   # 今日/本月双视图、设置页、主题与自绘控件
 │  ├─ AppClock.cs           # 系统时钟；测试构建可选注入时钟
 │  ├─ Program.cs            # 应用入口
 │  └─ AssemblyInfo.cs
 ├─ tests/                   # 无第三方依赖的自动测试程序
 ├─ android/                 # Android 原生源码、构建脚本与签名密钥
 │  ├─ app/                  # Java 源码、Manifest、资源与布局
-│  ├─ tests/                # 70 个纯 Java 核心测试
+│  ├─ tests/                # 86 个纯 Java 核心测试
 │  └─ build.ps1             # aapt2 → javac → d8 → 签名
 ├─ assets/                  # Windows 图标与 manifest
 ├─ tools/                   # 图标生成及 UI 自动化验证脚本
@@ -140,7 +152,7 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\test.ps1
 # 只编译、不跑测试
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -SkipTests
 
-# Android：运行 70 个核心测试并构建 APK
+# Android：运行 86 个核心测试并构建 APK
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\android\build.ps1
 ```
 
@@ -157,7 +169,8 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\android\build.
 - 这是**估算展示工具**，不是薪资核算系统；不处理个税、社保、请假、加班和实际发薪。
 - Windows 和 Android 均可开启实际工作日模式，内置 2026—2027 年官方节假日/调休表；其他年份回退为周一至周五。默认平均模式仍仅按周末判断。
 - 支持一段午休、同一天内完成的班次；不支持跨天班次或多段休息。
-- 不显示本月累计金额。
+- 本月累计为估算：平均模式按 21.75 天日薪累计，月末可能不等于月薪；不包含请假、加班、补班、个税、社保和实际发薪。修改薪资/作息后，本月历史估算会按当前设置整体重算。
+- 发薪日只用于自然日倒计时，不自动顺延周末/节假日，也不代表实际到账时间。
 - Windows 版无数字签名、无自动更新、无系统托盘、无开机启动；Android 版为本地自签名，签名密钥和密码不进入 Git 仓库。
 - 修改系统时间会直接影响金额和倒计时显示。
 
@@ -169,4 +182,4 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\android\build.
 
 ---
 
-Windows 版：**1.2.0** · Android 版：**1.2.0** · 构建日期：2026-11-14
+Windows 版：**1.3.0** · Android 版：**1.3.0** · 构建日期：2026-11-16

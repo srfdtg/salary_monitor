@@ -52,6 +52,17 @@ namespace SalaryMonitor.UI
                     Path.Combine(directory, "main-hidden.png"));
                 main.SetAmountsHiddenForTest(false);
 
+                main.SetPaydayForTest(15);
+                main.SetMonthViewForTest(true);
+                CaptureElement((FrameworkElement)main.Content,
+                    Path.Combine(directory, "month.png"));
+                main.SetAmountsHiddenForTest(true);
+                CaptureElement((FrameworkElement)main.Content,
+                    Path.Combine(directory, "month-hidden.png"));
+                main.SetAmountsHiddenForTest(false);
+                main.SetMonthViewForTest(false);
+                main.SetPaydayForTest(0);
+
                 SettingsWindow dialog = new SettingsWindow(settings, store);
                 dialog.Owner = main;
                 dialog.Topmost = main.Topmost;

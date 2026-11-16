@@ -44,6 +44,9 @@ public final class SettingsValidator {
         if (settings.getLunchEndMinutes() >= settings.getWorkEndMinutes()) {
             result.add("WorkEndMinutes", "下班时间必须晚于午休结束时间");
         }
+        if (settings.getPayday() < 0 || settings.getPayday() > 31) {
+            result.add("Payday", "发薪日需在 1–31 之间，或留空表示不设置");
+        }
         return result;
     }
 

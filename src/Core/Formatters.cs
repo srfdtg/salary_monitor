@@ -87,6 +87,26 @@ namespace SalaryMonitor.Core
                 date.Month.ToString(Invariant) + "月";
         }
 
+        public static string MonthDay(DateTime date)
+        {
+            return date.Month.ToString(Invariant) + "月" +
+                date.Day.ToString(Invariant) + "日";
+        }
+
+        /// <summary>
+        /// Workday counts shown on the month page. A partial day is rounded to
+        /// one decimal so "10.7 / 21 天" stays readable.
+        /// </summary>
+        public static string WorkdaysValue(decimal days)
+        {
+            decimal rounded = Decimal.Round(days, 1, MidpointRounding.AwayFromZero);
+            if (rounded == Decimal.Truncate(rounded))
+            {
+                return ((int)rounded).ToString(Invariant);
+            }
+            return rounded.ToString("0.#", Invariant);
+        }
+
         public static string DaysInput(decimal days)
         {
             return days.ToString("0.##", Invariant);

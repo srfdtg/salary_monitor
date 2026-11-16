@@ -20,6 +20,8 @@ import com.salarymonitor.app.core.AppSettings;
 import com.salarymonitor.app.core.DayKind;
 import com.salarymonitor.app.core.DayPhase;
 import com.salarymonitor.app.core.Formatters;
+import com.salarymonitor.app.core.MonthCalculator;
+import com.salarymonitor.app.core.MonthSnapshot;
 import com.salarymonitor.app.core.PayCalculator;
 import com.salarymonitor.app.core.PaySnapshot;
 import com.salarymonitor.app.core.PhaseText;
@@ -33,6 +35,8 @@ public final class MainActivity extends Activity {
     private static final int COLOR_BG = 0xFF071019;
     private static final int TEXT_PRIMARY = 0xFFF8FAFC;
     private static final int TEXT_SECONDARY = 0xFF94A3B8;
+    private static final int TEXT_MUTED = 0xFF64748B;
+    private static final int TEXT_ACCENT = 0xFF67E8F9;
     private static final int WORK_BG = 0x202DD4BF;
     private static final int WORK_BORDER = 0x372DD4BF;
     private static final int WORK_TEXT = 0xFF99F6E4;
@@ -56,8 +60,14 @@ public final class MainActivity extends Activity {
     };
 
     private AppSettings settings;
+    private MonthSnapshot monthSnapshot;
     private boolean amountsHidden;
+    private boolean monthView;
     private ImageButton amountVisibilityButton;
+    private View todayPage;
+    private View monthPage;
+    private TextView todayTab;
+    private TextView monthTab;
     private TextView statusText;
     private View statusDot;
     private View statusPill;
@@ -76,6 +86,20 @@ public final class MainActivity extends Activity {
     private TextView updateNoteText;
     private TextView footerHint;
     private ProgressBarView progressBar;
+
+    private TextView monthAmountText;
+    private TextView monthBasisTag;
+    private TextView monthDailyText;
+    private TextView monthWorkdaysText;
+    private TextView monthElapsedText;
+    private TextView monthProgressPercentText;
+    private TextView monthProgressDaysText;
+    private TextView monthPaydayTitle;
+    private TextView monthPaydayDateText;
+    private TextView monthPaydayDaysText;
+    private TextView monthPaydayUnitText;
+    private TextView monthPaydayHintText;
+    private ProgressBarView monthProgressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,10 +129,28 @@ public final class MainActivity extends Activity {
         });
         renderAmountVisibility();
 
+        todayTab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setMonthView(false);
+            }
+        });
+        monthTab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setMonthView(true);
+            }
+        });
+        applyTabState();
+
         updateUi();
     }
 
     private void bindViews() {
+        todayPage = findViewById(R.id.todayPage);
+        monthPage = findViewById(R.id.monthPage);
+        todayTab = findViewById(R.id.todayTab);
+        monthTab = findViewById(R.id.monthTab);
         statusPill = findViewById(R.id.statusPill);
         statusDot = findViewById(R.id.statusDot);
         statusText = findViewById(R.id.statusText);
@@ -127,6 +169,20 @@ public final class MainActivity extends Activity {
         progressBar = findViewById(R.id.progressBar);
         updateNoteText = findViewById(R.id.updateNoteText);
         footerHint = findViewById(R.id.footerHint);
+
+        monthAmountText = findViewById(R.id.monthAmountText);
+        monthBasisTag = findViewById(R.id.monthBasisTag);
+        monthDailyText = findViewById(R.id.monthDailyText);
+        monthWorkdaysText = findViewById(R.id.monthWorkdaysText);
+        monthElapsedText = findViewById(R.id.monthElapsedText);
+        monthProgressPercentText = findViewById(R.id.monthProgressPercentText);
+        monthProgressDaysText = findViewById(R.id.monthProgressDaysText);
+        monthPaydayTitle = findViewById(R.id.monthPaydayTitle);
+        monthPaydayDateText = findViewById(R.id.monthPaydayDateText);
+        monthPaydayDaysText = findViewById(R.id.monthPaydayDaysText);
+        monthPaydayUnitText = findViewById(R.id.monthPaydayUnitText);
+        monthPaydayHintText = findViewById(R.id.monthPaydayHintText);
+        monthProgressBar = findViewById(R.id.monthProgressBar);
     }
 
     @Override
@@ -164,6 +220,39 @@ public final class MainActivity extends Activity {
     private void openSettings() {
         Intent intent = new Intent(this, SettingsActivity.class);
         startActivityForResult(intent, REQUEST_SETTINGS);
+    }
+
+    private void setMonthView(boolean month) {
+        monthView = month;
+        todayPage.setVisibility(month ? View.GONE : View.VISIBLE);
+        monthPage.setVisibility(month ? View.VISIBLE : View.GONE);
+        applyTabState();
+        updateUi();
+    }
+
+    private void applyTabState() {
+        if (todayTab == null || monthTab == null) {
+            return;
+        }
+        todayTab.setBackgroundResource(monthView
+                ? android.R.color.transparent : R.drawable.bg_tab_active);
+        monthTab.setBackgroundResource(monthView
+                ? R.drawable.bg_tab_active : android.R.color.transparent);
+        todayTab.setTextColor(monthView ? TEXT_MUTED : TEXT_ACCENT);
+        monthTab.setTextColor(monthView ? TEXT_ACCENT : TEXT_MUTED);
+        todayTab.setTypeface(Typeface.create("sans-serif",
+                monthView ? Typeface.NORMAL : Typeface.BOLD));
+        monthTab.setTypeface(Typeface.create("sans-serif",
+                monthView ? Typeface.BOLD : Typeface.NORMAL));
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (monthView) {
+            setMonthView(false);
+            return;
+        }
+        super.onBackPressed();
     }
 
     private void toggleAmountVisibility() {
@@ -204,6 +293,7 @@ public final class MainActivity extends Activity {
     private void updateUi() {
         LocalDateTime now = LocalDateTime.now();
         PaySnapshot snapshot = PayCalculator.calculate(settings, now);
+        monthSnapshot = MonthCalculator.calculate(settings, now);
 
         if (amountsHidden) {
             amountText.setText(Formatters.HIDDEN_AMOUNT);
@@ -234,6 +324,7 @@ public final class MainActivity extends Activity {
 
         renderPhase(snapshot);
         renderBasis(snapshot);
+        renderMonth(monthSnapshot);
 
         if (snapshot.getPhase() == DayPhase.REST_DAY) {
             progressBar.setProgress(0.0);
@@ -247,7 +338,83 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void renderMonth(MonthSnapshot month) {
+        if (month == null || monthAmountText == null) {
+            return;
+        }
+
+        if (amountsHidden) {
+            monthAmountText.setText(Formatters.HIDDEN_AMOUNT);
+            monthAmountText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 44);
+            monthDailyText.setText(Formatters.HIDDEN_MONEY);
+        } else {
+            String amount = Formatters.moneyValue(month.getMonthEarned());
+            monthAmountText.setText(amount);
+            int amountSize;
+            if (amount.length() > 12) {
+                amountSize = 28;
+            } else if (amount.length() > 9) {
+                amountSize = 36;
+            } else {
+                amountSize = 44;
+            }
+            monthAmountText.setTextSize(TypedValue.COMPLEX_UNIT_SP, amountSize);
+            monthDailyText.setText(Formatters.money(month.getDailyWage()));
+        }
+
+        monthBasisTag.setText(month.isActualWorkdays() ? "按实际工作日" : "按日薪累计");
+        monthWorkdaysText.setText(month.getTotalWorkdays() + " 天");
+        monthElapsedText.setText(Formatters.workdaysValue(month.getCompletedWorkdays()) + " 天");
+        monthProgressDaysText.setText(Formatters.workdaysValue(month.getCompletedWorkdays())
+                + " / " + month.getTotalWorkdays() + " 天");
+        monthProgressPercentText.setText(month.getTotalWorkdays() > 0
+                ? Formatters.progress(month.getProgress()) : "—");
+        monthProgressBar.setProgress(month.getProgress());
+
+        if (!month.isPaydayConfigured()) {
+            monthPaydayTitle.setText("发薪日未设置");
+            monthPaydayDateText.setText("");
+            monthPaydayDaysText.setText("—");
+            monthPaydayDaysText.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+            monthPaydayDaysText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
+            monthPaydayUnitText.setText("");
+            monthPaydayHintText.setText("可在设置中填写");
+        } else if (month.isPaydayToday()) {
+            monthPaydayTitle.setText("今天发薪");
+            monthPaydayDateText.setText(Formatters.monthDay(month.getNextPayday()));
+            monthPaydayDaysText.setText("今天");
+            monthPaydayDaysText.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+            monthPaydayDaysText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
+            monthPaydayUnitText.setText("");
+            monthPaydayHintText.setText("按自然日估算");
+        } else {
+            monthPaydayTitle.setText("距下次发薪");
+            monthPaydayDateText.setText(Formatters.monthDay(month.getNextPayday()));
+            monthPaydayDaysText.setText(String.valueOf(month.getDaysUntilPayday()));
+            monthPaydayDaysText.setTypeface(Typeface.MONOSPACE);
+            monthPaydayDaysText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 34);
+            monthPaydayUnitText.setText("天");
+            monthPaydayHintText.setText("按自然日估算");
+        }
+    }
+
     private void renderBasis(PaySnapshot snapshot) {
+        if (monthView && monthSnapshot != null) {
+            if (monthSnapshot.isActualWorkdays()) {
+                if (!monthSnapshot.isCalendarDataAvailable()) {
+                    footerHint.setText("未收录 " + monthSnapshot.getYear()
+                            + " 年节假日 · 按工作日估算");
+                } else {
+                    footerHint.setText("按本月 " + monthSnapshot.getTotalWorkdays()
+                            + " 个工作日估算");
+                }
+            } else {
+                footerHint.setText("日薪累计估算 · 月末可能不等于月薪");
+            }
+            updateNoteText.setText("本月实时累计");
+            return;
+        }
+
         String basis;
         if (snapshot.isActualWorkdays()) {
             if (!snapshot.isCalendarDataAvailable()) {

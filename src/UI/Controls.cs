@@ -191,6 +191,80 @@ namespace SalaryMonitor.UI
         }
     }
 
+    internal sealed class SegmentButton : Button
+    {
+        private readonly TextBlock _label;
+
+        public SegmentButton(string text)
+        {
+            Width = 54;
+            Height = 26;
+            Padding = new Thickness(0);
+            Background = Theme.Transparent;
+            BorderBrush = Theme.Transparent;
+            BorderThickness = new Thickness(1);
+            Cursor = Cursors.Hand;
+            Focusable = true;
+            SnapsToDevicePixels = true;
+            UseLayoutRounding = true;
+            Template = BuildSegmentTemplate();
+
+            _label = Theme.CnText(text, 9.5, Theme.TextMuted, FontWeights.Normal);
+            _label.HorizontalAlignment = HorizontalAlignment.Center;
+            _label.VerticalAlignment = VerticalAlignment.Center;
+            Content = _label;
+            AutomationProperties.SetName(this, text);
+            SetActive(false);
+        }
+
+        public void SetActive(bool active)
+        {
+            Background = active
+                ? Theme.Frozen(26, 34, 211, 238)
+                : Theme.Transparent;
+            BorderBrush = active
+                ? Theme.Frozen(45, 103, 232, 249)
+                : Theme.Transparent;
+            _label.Foreground = active ? Theme.AccentBright : Theme.TextMuted;
+            _label.FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal;
+        }
+
+        private static ControlTemplate BuildSegmentTemplate()
+        {
+            FrameworkElementFactory chrome = new FrameworkElementFactory(typeof(Border), "chrome");
+            chrome.SetValue(Border.BackgroundProperty,
+                new TemplateBindingExtension(Control.BackgroundProperty));
+            chrome.SetValue(Border.BorderBrushProperty,
+                new TemplateBindingExtension(Control.BorderBrushProperty));
+            chrome.SetValue(Border.BorderThicknessProperty,
+                new TemplateBindingExtension(Control.BorderThicknessProperty));
+            chrome.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));
+            chrome.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
+
+            FrameworkElementFactory presenter = new FrameworkElementFactory(typeof(ContentPresenter));
+            presenter.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            presenter.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            chrome.AppendChild(presenter);
+
+            ControlTemplate template = new ControlTemplate(typeof(Button));
+            template.VisualTree = chrome;
+
+            Trigger hover = new Trigger();
+            hover.Property = UIElement.IsMouseOverProperty;
+            hover.Value = true;
+            hover.Setters.Add(new Setter(UIElement.OpacityProperty, 0.84));
+            template.Triggers.Add(hover);
+
+            Trigger pressed = new Trigger();
+            pressed.Property = ButtonBase.IsPressedProperty;
+            pressed.Value = true;
+            pressed.Setters.Add(new Setter(UIElement.OpacityProperty, 0.70));
+            template.Triggers.Add(pressed);
+
+            return template;
+        }
+    }
+
     internal enum TextButtonKind
     {
         Primary,

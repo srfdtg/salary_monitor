@@ -213,6 +213,42 @@ try {
     if (-not $amount) { throw "Expected main amount 1,052.49 was not found." }
     Log "Main view shows 1,052.49 at fixed 16:28:35."
 
+    Log "Switching to the month view..."
+    $monthTab = Wait-Button $main "本月视图"
+    if (-not $monthTab) { throw "Month tab was not found." }
+    Invoke-ButtonElement $monthTab
+    if (-not (Wait-TextContaining $main "5,673.18")) {
+        throw "Month-to-date amount 5,673.18 was not found."
+    }
+    if (-not (Wait-TextContaining $main "3.7 / 21 天")) {
+        throw "Month workday progress 3.7 / 21 was not found."
+    }
+    if (-not (Wait-TextContaining $main "发薪日未设置")) {
+        throw "Unset payday hint was not found."
+    }
+    Log "Month view shows 5,673.18, 3.7 / 21 workdays, and unset payday."
+
+    Log "Testing amount hiding on the month view..."
+    $hideMonthButton = Wait-Button $main "隐藏金额"
+    Invoke-ButtonElement $hideMonthButton
+    if (-not (Wait-TextContaining $main "••••••")) {
+        throw "Month amount was not masked."
+    }
+    if (-not (Wait-TextContaining $main "¥••••")) {
+        throw "Month daily wage was not masked."
+    }
+    $showMonthButton = Wait-Button $main "显示金额"
+    Invoke-ButtonElement $showMonthButton
+    if (-not (Wait-TextContaining $main "5,673.18")) {
+        throw "Month amount was not restored."
+    }
+    $todayTab = Wait-Button $main "今日视图"
+    Invoke-ButtonElement $todayTab
+    if (-not (Wait-TextContaining $main "1,052.49")) {
+        throw "Today amount was not restored after leaving the month view."
+    }
+    Log "Month privacy toggle and tab switching work."
+
     Log "Testing the eye button hide/show toggle..."
     $hideButton = Wait-Button $main "隐藏金额"
     if (-not $hideButton) { throw "Hide-amount eye button was not found." }
@@ -263,10 +299,15 @@ try {
 
     $salaryEdit = Wait-Edit $settingsWindow "月薪"
     Set-EditValue $salaryEdit "40000"
+    $paydayEdit = Wait-Edit $settingsWindow "发薪日（可选）"
+    Set-EditValue $paydayEdit "15"
     Start-Sleep -Milliseconds 300
     $previewText = Wait-TextContaining $settingsWindow "¥1,839.08"
     if (-not $previewText) { throw "Live income preview did not update to ¥1,839.08." }
-    Log "Live preview updates for 40,000 salary."
+    if (-not (Wait-TextContaining $settingsWindow "11月15日")) {
+        throw "Payday preview did not update to 11月15日."
+    }
+    Log "Live preview updates for 40,000 salary and payday 15."
 
     $saveButton = Find-Button $settingsWindow "保存设置"
     Invoke-ButtonElement $saveButton
@@ -278,6 +319,25 @@ try {
     $updatedAmount = Wait-TextContaining $main "1,256.70"
     if (-not $updatedAmount) { throw "Main amount did not update to 1,256.70 after save." }
     Log "Main view recalculated to 1,256.70 after save."
+
+    $savedWithPayday = Read-Settings
+    if (-not $savedWithPayday -or $savedWithPayday.payday -ne 15) {
+        throw "Payday 15 was not saved."
+    }
+    $monthTab = Wait-Button $main "本月视图"
+    Invoke-ButtonElement $monthTab
+    if (-not (Wait-TextContaining $main "6,773.95")) {
+        throw "Month amount did not update to 6,773.95 after salary save."
+    }
+    if (-not (Wait-TextContaining $main "距下次发薪")) {
+        throw "Payday countdown was not shown."
+    }
+    if (-not (Wait-TextContaining $main "11月15日")) {
+        throw "Next payday date was not shown on the month page."
+    }
+    $todayTab = Wait-Button $main "今日视图"
+    Invoke-ButtonElement $todayTab
+    Log "Month view and payday countdown updated after settings save."
 
     Log "Testing invalid salary rejection..."
     $settingsButton = Wait-Button $main "设置"
@@ -324,6 +384,7 @@ try {
         }
     }
     if ($afterToggle.alwaysOnTop -ne $false) { throw "Topmost=false was not persisted." }
+    if ($afterToggle.payday -ne 15) { throw "Payday was lost while saving topmost." }
     if (Get-SettingsWindow $appPid) { throw "Settings window did not close after topmost save." }
     $pinOn = Find-Button $main "保持置顶"
     if (-not $pinOn) { throw "Main pin button was not updated after disabling topmost." }
@@ -361,7 +422,21 @@ try {
     if (-not (Wait-Button $main "取消置顶")) {
         throw "Persisted topmost state was not applied on restart."
     }
-    Log "Restart applied persisted salary and topmost state."
+    $persistedPayday = Read-Settings
+    if (-not $persistedPayday -or $persistedPayday.payday -ne 15) {
+        throw "Persisted payday was not applied on restart."
+    }
+    $monthTab = Wait-Button $main "本月视图"
+    Invoke-ButtonElement $monthTab
+    if (-not (Wait-TextContaining $main "6,773.95")) {
+        throw "Persisted month amount was not shown after restart."
+    }
+    if (-not (Wait-TextContaining $main "11月15日")) {
+        throw "Persisted payday was not shown after restart."
+    }
+    $todayTab = Wait-Button $main "今日视图"
+    Invoke-ButtonElement $todayTab
+    Log "Restart applied persisted salary, topmost state, month amount and payday."
     $closeButton = Find-Button $main "退出"
     Invoke-ButtonElement $closeButton
     Start-Sleep -Milliseconds 500

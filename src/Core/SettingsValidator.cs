@@ -98,6 +98,11 @@ namespace SalaryMonitor.Core
                 result.Add("WorkEndMinutes", "下班时间必须晚于午休结束时间");
             }
 
+            if (settings.Payday < 0 || settings.Payday > 31)
+            {
+                result.Add("Payday", "发薪日需在 1–31 之间，或留空表示不设置");
+            }
+
             return result;
         }
 

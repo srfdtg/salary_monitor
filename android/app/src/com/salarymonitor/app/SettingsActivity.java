@@ -20,6 +20,8 @@ import android.widget.TimePicker;
 
 import com.salarymonitor.app.core.AppSettings;
 import com.salarymonitor.app.core.Formatters;
+import com.salarymonitor.app.core.MonthCalculator;
+import com.salarymonitor.app.core.MonthSnapshot;
 import com.salarymonitor.app.core.SettingsValidator;
 import com.salarymonitor.app.core.WorkdayCalendar;
 import com.salarymonitor.app.data.SettingsRepository;
@@ -27,6 +29,7 @@ import com.salarymonitor.app.data.SettingsRepository;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public final class SettingsActivity extends Activity {
     private static final int INDEX_WORK_START = 0;
@@ -41,6 +44,7 @@ public final class SettingsActivity extends Activity {
     private ScrollView scroll;
     private EditText salaryInput;
     private EditText daysInput;
+    private EditText paydayInput;
     private TextView startTime;
     private TextView lunchStartTime;
     private TextView lunchEndTime;
@@ -52,12 +56,14 @@ public final class SettingsActivity extends Activity {
     private TextView incomeSummary;
     private TextView durationSummary;
     private TextView actualHint;
+    private TextView paydayHint;
     private TextView errorText;
     private Switch keepScreenOnSwitch;
     private Switch actualWorkdaysSwitch;
     private View salaryField;
     private View daysField;
     private View daysColumn;
+    private View paydayField;
     private View startField;
     private View lunchStartField;
     private View lunchEndField;
@@ -79,6 +85,7 @@ public final class SettingsActivity extends Activity {
         scroll = findViewById(R.id.settingsScroll);
         salaryInput = findViewById(R.id.salaryInput);
         daysInput = findViewById(R.id.daysInput);
+        paydayInput = findViewById(R.id.paydayInput);
         startTime = findViewById(R.id.startTime);
         lunchStartTime = findViewById(R.id.lunchStartTime);
         lunchEndTime = findViewById(R.id.lunchEndTime);
@@ -90,12 +97,14 @@ public final class SettingsActivity extends Activity {
         incomeSummary = findViewById(R.id.incomeSummary);
         durationSummary = findViewById(R.id.durationSummary);
         actualHint = findViewById(R.id.actualHint);
+        paydayHint = findViewById(R.id.paydayHint);
         errorText = findViewById(R.id.errorText);
         keepScreenOnSwitch = findViewById(R.id.keepScreenOnSwitch);
         actualWorkdaysSwitch = findViewById(R.id.actualWorkdaysSwitch);
         salaryField = findViewById(R.id.salaryField);
         daysField = findViewById(R.id.daysField);
         daysColumn = findViewById(R.id.daysColumn);
+        paydayField = findViewById(R.id.paydayField);
         startField = findViewById(R.id.startField);
         lunchStartField = findViewById(R.id.lunchStartField);
         lunchEndField = findViewById(R.id.lunchEndField);
@@ -171,6 +180,7 @@ public final class SettingsActivity extends Activity {
         };
         salaryInput.addTextChangedListener(watcher);
         daysInput.addTextChangedListener(watcher);
+        paydayInput.addTextChangedListener(watcher);
         actualWorkdaysSwitch.setOnCheckedChangeListener(
                 new CompoundButton.OnCheckedChangeListener() {
                     @Override
@@ -185,6 +195,8 @@ public final class SettingsActivity extends Activity {
     private void populate(AppSettings settings) {
         salaryInput.setText(Formatters.amountInput(settings.getMonthlySalary()));
         daysInput.setText(Formatters.daysInput(settings.getMonthlyWorkDays()));
+        paydayInput.setText(settings.getPayday() >= 1 && settings.getPayday() <= 31
+                ? String.valueOf(settings.getPayday()) : "");
         times[INDEX_WORK_START] = settings.getWorkStartMinutes();
         times[INDEX_LUNCH_START] = settings.getLunchStartMinutes();
         times[INDEX_LUNCH_END] = settings.getLunchEndMinutes();
@@ -194,6 +206,7 @@ public final class SettingsActivity extends Activity {
         updateTimeViews();
         updateActualMode();
         updateSummary();
+        updatePaydayHint();
         clearError();
     }
 
@@ -280,6 +293,42 @@ public final class SettingsActivity extends Activity {
             durationSummary.setText("每日有效工时 " + Formatters.workDuration(total));
             durationSummary.setTextColor(0xFFA8B7C9);
         }
+
+        updatePaydayHint();
+    }
+
+    private void updatePaydayHint() {
+        if (paydayHint == null) {
+            return;
+        }
+        String text = paydayInput.getText().toString().trim();
+        if (text.length() == 0) {
+            paydayHint.setText("留空不显示发薪倒计时；遇短月按当月最后一天");
+            paydayHint.setTextColor(0xFF64748B);
+            return;
+        }
+        int payday;
+        try {
+            payday = Integer.parseInt(text);
+        } catch (NumberFormatException ex) {
+            payday = -1;
+        }
+        if (payday < 1 || payday > 31) {
+            paydayHint.setText("请输入 1–31，留空表示不设置");
+            paydayHint.setTextColor(DANGER);
+            return;
+        }
+
+        AppSettings preview = SettingsRepository.load(this).copy();
+        preview.setPayday(payday);
+        MonthSnapshot month = MonthCalculator.calculate(preview, LocalDateTime.now());
+        if (month.isPaydayToday()) {
+            paydayHint.setText("今天发薪 · 按自然日估算");
+        } else {
+            paydayHint.setText("下次发薪 " + Formatters.monthDay(month.getNextPayday())
+                    + " · 还有 " + month.getDaysUntilPayday() + " 天");
+        }
+        paydayHint.setTextColor(0xFF64748B);
     }
 
     private boolean orderValid() {
@@ -312,6 +361,20 @@ public final class SettingsActivity extends Activity {
             return;
         }
 
+        String paydayText = paydayInput.getText().toString().trim();
+        int payday = 0;
+        if (paydayText.length() > 0) {
+            try {
+                payday = Integer.parseInt(paydayText);
+            } catch (NumberFormatException ex) {
+                payday = -1;
+            }
+            if (payday < 1 || payday > 31) {
+                showError("发薪日需在 1–31 之间，或留空表示不设置", paydayField);
+                return;
+            }
+        }
+
         AppSettings settings = new AppSettings();
         settings.setMonthlySalary(salary);
         settings.setMonthlyWorkDays(days);
@@ -321,6 +384,7 @@ public final class SettingsActivity extends Activity {
         settings.setWorkEndMinutes(times[INDEX_WORK_END]);
         settings.setKeepScreenOn(keepScreenOnSwitch.isChecked());
         settings.setActualWorkdaysEnabled(actualWorkdaysSwitch.isChecked());
+        settings.setPayday(payday);
         // The visibility toggle lives on the dashboard, not in this form.
         settings.setAmountsHidden(SettingsRepository.load(this).isAmountsHidden());
 
@@ -344,6 +408,9 @@ public final class SettingsActivity extends Activity {
         }
         if ("MonthlyWorkDays".equals(name)) {
             return daysField;
+        }
+        if ("Payday".equals(name)) {
+            return paydayField;
         }
         if ("WorkStartMinutes".equals(name)) {
             return startField;
@@ -378,6 +445,7 @@ public final class SettingsActivity extends Activity {
         errorText.setVisibility(View.GONE);
         salaryField.setBackgroundResource(R.drawable.bg_input);
         daysField.setBackgroundResource(R.drawable.bg_input);
+        paydayField.setBackgroundResource(R.drawable.bg_input);
         startField.setBackgroundResource(R.drawable.bg_input);
         lunchStartField.setBackgroundResource(R.drawable.bg_input);
         lunchEndField.setBackgroundResource(R.drawable.bg_input);

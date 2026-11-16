@@ -86,6 +86,24 @@ public final class Formatters {
         return String.format(Locale.US, "%d年%d月", year, month);
     }
 
+    public static String monthDay(LocalDate date) {
+        LocalDate value = date == null ? LocalDate.now() : date;
+        return value.getMonthValue() + "月" + value.getDayOfMonth() + "日";
+    }
+
+    /**
+     * Workday counts shown on the month page. A partial day is rounded to one
+     * decimal so "10.7 / 21 天" stays readable.
+     */
+    public static String workdaysValue(BigDecimal days) {
+        BigDecimal value = days == null ? BigDecimal.ZERO : days;
+        BigDecimal rounded = value.setScale(1, RoundingMode.HALF_UP);
+        if (rounded.stripTrailingZeros().scale() <= 0) {
+            return rounded.setScale(0, RoundingMode.HALF_UP).toPlainString();
+        }
+        return rounded.toPlainString();
+    }
+
     public static String clockHHmm(int minutes) {
         int normalized = Math.max(0, minutes) % (24 * 60);
         return String.format(Locale.US, "%02d:%02d",

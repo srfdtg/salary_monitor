@@ -16,8 +16,16 @@ namespace SalaryMonitor.UI
         private AppSettings _settings;
         private readonly DispatcherTimer _timer;
         private PaySnapshot _snapshot;
+        private MonthSnapshot _monthSnapshot;
         private double _progressRatio;
+        private double _monthProgressRatio;
         private bool _footerError;
+        private bool _monthView;
+
+        private Grid _todayPage;
+        private Grid _monthPage;
+        private SegmentButton _todayTab;
+        private SegmentButton _monthTab;
 
         private TextBlock _amountText;
         private TextBlock _statusText;
@@ -41,6 +49,22 @@ namespace SalaryMonitor.UI
         private IconButton _pinButton;
         private IconButton _eyeButton;
 
+        private TextBlock _monthAmountText;
+        private TextBlock _monthBasisTagText;
+        private TextBlock _monthDailyText;
+        private TextBlock _monthWorkdaysText;
+        private TextBlock _monthElapsedText;
+        private TextBlock _monthProgressPercentText;
+        private TextBlock _monthProgressDaysText;
+        private TextBlock _monthPaydayTitle;
+        private TextBlock _monthPaydayDateText;
+        private TextBlock _monthPaydayDaysText;
+        private TextBlock _monthPaydayUnitText;
+        private TextBlock _monthPaydayHintText;
+        private TextBlock _monthPaydayNote;
+        private Border _monthProgressTrack;
+        private Border _monthProgressFill;
+
         private static readonly SolidColorBrush WorkBg = Theme.Frozen(32, 45, 212, 191);
         private static readonly SolidColorBrush WorkBorder = Theme.Frozen(55, 45, 212, 191);
         private static readonly SolidColorBrush WorkText = Theme.Frozen(255, 153, 246, 228);
@@ -58,7 +82,7 @@ namespace SalaryMonitor.UI
 
             Title = "薪资显示器";
             Width = 504;
-            Height = 524;
+            Height = 560;
             WindowStyle = WindowStyle.None;
             ResizeMode = ResizeMode.NoResize;
             AllowsTransparency = true;
@@ -95,10 +119,6 @@ namespace SalaryMonitor.UI
             content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             content.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
@@ -110,29 +130,22 @@ namespace SalaryMonitor.UI
             content.Children.Add(status);
             Grid.SetRow(status, 1);
 
-            UIElement hero = BuildHeroLabel();
-            content.Children.Add(hero);
-            Grid.SetRow(hero, 2);
+            UIElement tabs = BuildViewTabs();
+            content.Children.Add(tabs);
+            Grid.SetRow(tabs, 2);
 
-            UIElement amount = BuildAmount();
-            content.Children.Add(amount);
-            Grid.SetRow(amount, 3);
-
-            UIElement rates = BuildRateStrip();
-            content.Children.Add(rates);
-            Grid.SetRow(rates, 4);
-
-            UIElement countdown = BuildCountdownPanel();
-            content.Children.Add(countdown);
-            Grid.SetRow(countdown, 5);
-
-            UIElement progress = BuildProgress();
-            content.Children.Add(progress);
-            Grid.SetRow(progress, 6);
+            Grid pageHost = new Grid();
+            _todayPage = BuildTodayPage();
+            _monthPage = BuildMonthPage();
+            _monthPage.Visibility = Visibility.Collapsed;
+            pageHost.Children.Add(_todayPage);
+            pageHost.Children.Add(_monthPage);
+            content.Children.Add(pageHost);
+            Grid.SetRow(pageHost, 3);
 
             UIElement footer = BuildFooter();
             content.Children.Add(footer);
-            Grid.SetRow(footer, 8);
+            Grid.SetRow(footer, 4);
 
             Theme.CardSurface(card, 26, content);
             root.Children.Add(card);
@@ -277,7 +290,117 @@ namespace SalaryMonitor.UI
             return row;
         }
 
-        private UIElement BuildHeroLabel()
+        private UIElement BuildViewTabs()
+        {
+            Grid row = new Grid();
+            row.Margin = new Thickness(0, 12, 0, 0);
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            Border switchBox = Theme.Panel(
+                Theme.Frozen(11, 255, 255, 255),
+                Theme.Frozen(17, 255, 255, 255), 10, 1);
+            switchBox.Padding = new Thickness(2);
+            switchBox.HorizontalAlignment = HorizontalAlignment.Left;
+            switchBox.VerticalAlignment = VerticalAlignment.Center;
+
+            StackPanel tabs = new StackPanel();
+            tabs.Orientation = Orientation.Horizontal;
+            _todayTab = new SegmentButton("今日");
+            _todayTab.Margin = new Thickness(0, 0, 2, 0);
+            System.Windows.Automation.AutomationProperties.SetName(_todayTab, "今日视图");
+            _todayTab.Click += OnTodayTabClick;
+            _monthTab = new SegmentButton("本月");
+            System.Windows.Automation.AutomationProperties.SetName(_monthTab, "本月视图");
+            _monthTab.Click += OnMonthTabClick;
+            tabs.Children.Add(_todayTab);
+            tabs.Children.Add(_monthTab);
+            switchBox.Child = tabs;
+            row.Children.Add(switchBox);
+
+            _eyeButton = new IconButton(
+                _settings.AmountsHidden ? AppIcons.EyeOff : AppIcons.Eye,
+                _settings.AmountsHidden ? "显示金额" : "隐藏金额", false);
+            _eyeButton.HorizontalAlignment = HorizontalAlignment.Right;
+            _eyeButton.VerticalAlignment = VerticalAlignment.Center;
+            _eyeButton.Click += OnEyeClick;
+            row.Children.Add(_eyeButton);
+            Grid.SetColumn(_eyeButton, 2);
+
+            return row;
+        }
+
+        private Grid BuildTodayPage()
+        {
+            Grid page = new Grid();
+            page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            UIElement hero = BuildHeroLabel();
+            page.Children.Add(hero);
+            Grid.SetRow(hero, 0);
+
+            UIElement amount = BuildAmount();
+            page.Children.Add(amount);
+            Grid.SetRow(amount, 1);
+
+            UIElement rates = BuildRateStrip();
+            page.Children.Add(rates);
+            Grid.SetRow(rates, 2);
+
+            UIElement countdown = BuildCountdownPanel();
+            page.Children.Add(countdown);
+            Grid.SetRow(countdown, 3);
+
+            UIElement progress = BuildProgress();
+            page.Children.Add(progress);
+            Grid.SetRow(progress, 4);
+
+            return page;
+        }
+
+        private Grid BuildMonthPage()
+        {
+            Grid page = new Grid();
+            page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            UIElement hero = BuildMonthHeroLabel();
+            page.Children.Add(hero);
+            Grid.SetRow(hero, 0);
+
+            UIElement amount = BuildMonthAmount();
+            page.Children.Add(amount);
+            Grid.SetRow(amount, 1);
+
+            UIElement progress = BuildMonthProgress();
+            page.Children.Add(progress);
+            Grid.SetRow(progress, 2);
+
+            UIElement payday = BuildMonthPaydayPanel();
+            page.Children.Add(payday);
+            Grid.SetRow(payday, 3);
+
+            UIElement metrics = BuildMonthMetrics();
+            page.Children.Add(metrics);
+            Grid.SetRow(metrics, 4);
+
+            UIElement note = BuildMonthPaydayNote();
+            page.Children.Add(note);
+            Grid.SetRow(note, 5);
+
+            return page;
+        }
+
+        private UIElement BuildMonthHeroLabel()
         {
             Grid row = new Grid();
             row.Margin = new Thickness(0, 15, 0, 0);
@@ -285,6 +408,211 @@ namespace SalaryMonitor.UI
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             StackPanel labels = new StackPanel();
+            labels.Orientation = Orientation.Horizontal;
+            labels.VerticalAlignment = VerticalAlignment.Center;
+            TextBlock label = Theme.CnText("本月已赚", 11, Theme.TextSecondary, FontWeights.Normal);
+
+            Border tag = new Border();
+            tag.Background = Theme.Frozen(20, 129, 140, 248);
+            tag.BorderBrush = Theme.Frozen(35, 129, 140, 248);
+            tag.BorderThickness = new Thickness(1);
+            tag.CornerRadius = new CornerRadius(8);
+            tag.Padding = new Thickness(7, 2, 7, 2);
+            tag.Margin = new Thickness(8, 0, 0, 0);
+            tag.VerticalAlignment = VerticalAlignment.Center;
+            _monthBasisTagText = Theme.CnText("按日薪累计", 8.5,
+                Theme.Frozen(255, 199, 210, 254), FontWeights.Normal);
+            tag.Child = _monthBasisTagText;
+
+            labels.Children.Add(label);
+            labels.Children.Add(tag);
+            row.Children.Add(labels);
+            return row;
+        }
+
+        private UIElement BuildMonthAmount()
+        {
+            Grid row = new Grid();
+            row.Margin = new Thickness(0, 2, 0, 0);
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            TextBlock currency = Theme.UiText("¥", 22, Theme.Frozen(255, 185, 245, 248));
+            currency.VerticalAlignment = VerticalAlignment.Bottom;
+            currency.Margin = new Thickness(0, 0, 6, 9);
+            row.Children.Add(currency);
+
+            _monthAmountText = Theme.Text("0.00", 50, Theme.AmountForeground,
+                Theme.NumberFont, FontWeights.SemiBold);
+            _monthAmountText.VerticalAlignment = VerticalAlignment.Bottom;
+            _monthAmountText.HorizontalAlignment = HorizontalAlignment.Left;
+            row.Children.Add(_monthAmountText);
+            Grid.SetColumn(_monthAmountText, 1);
+
+            return row;
+        }
+
+        private UIElement BuildMonthProgress()
+        {
+            StackPanel root = new StackPanel();
+            root.Margin = new Thickness(0, 18, 0, 0);
+
+            Grid labels = new Grid();
+            labels.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            labels.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            StackPanel left = new StackPanel();
+            left.Orientation = Orientation.Horizontal;
+            TextBlock prefix = Theme.CnText("本月工作日进度", 9, Theme.TextMuted, FontWeights.Normal);
+            _monthProgressPercentText = Theme.CnText("0%", 9, Theme.TextSoft, FontWeights.Normal);
+            _monthProgressPercentText.Margin = new Thickness(4, 0, 0, 0);
+            left.Children.Add(prefix);
+            left.Children.Add(_monthProgressPercentText);
+            labels.Children.Add(left);
+
+            _monthProgressDaysText = Theme.CnText("0 / 0 天", 9, Theme.TextSoft, FontWeights.Normal);
+            _monthProgressDaysText.HorizontalAlignment = HorizontalAlignment.Right;
+            labels.Children.Add(_monthProgressDaysText);
+            Grid.SetColumn(_monthProgressDaysText, 1);
+            root.Children.Add(labels);
+
+            _monthProgressTrack = new Border();
+            _monthProgressTrack.Height = 6;
+            _monthProgressTrack.CornerRadius = new CornerRadius(3);
+            _monthProgressTrack.Background = Theme.Frozen(22, 255, 255, 255);
+            _monthProgressTrack.Margin = new Thickness(0, 7, 0, 0);
+
+            Grid trackGrid = new Grid();
+            _monthProgressFill = new Border();
+            _monthProgressFill.Height = 6;
+            _monthProgressFill.CornerRadius = new CornerRadius(3);
+            _monthProgressFill.HorizontalAlignment = HorizontalAlignment.Left;
+            _monthProgressFill.Background = Theme.ProgressFill;
+            _monthProgressFill.Width = 0;
+            trackGrid.Children.Add(_monthProgressFill);
+            _monthProgressTrack.Child = trackGrid;
+            _monthProgressTrack.SizeChanged += delegate { UpdateMonthProgressBar(); };
+            root.Children.Add(_monthProgressTrack);
+
+            return root;
+        }
+
+        private UIElement BuildMonthPaydayPanel()
+        {
+            Border panel = Theme.Panel(Theme.CountdownBackground,
+                Theme.Frozen(25, 103, 232, 249), 15, 1);
+            panel.Margin = new Thickness(0, 12, 0, 0);
+            panel.Padding = new Thickness(14, 9, 14, 9);
+            panel.Height = 86;
+
+            Grid content = new Grid();
+            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            Grid header = new Grid();
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            StackPanel titleRow = new StackPanel();
+            titleRow.Orientation = Orientation.Horizontal;
+            titleRow.VerticalAlignment = VerticalAlignment.Center;
+            Path clock = Theme.Icon(AppIcons.Clock, Theme.Accent, 12);
+            clock.Margin = new Thickness(0, 0, 6, 0);
+            titleRow.Children.Add(clock);
+            _monthPaydayTitle = Theme.CnText("距下次发薪", 10.5, Theme.TextSoft, FontWeights.Normal);
+            titleRow.Children.Add(_monthPaydayTitle);
+            header.Children.Add(titleRow);
+
+            _monthPaydayDateText = Theme.CnText("", 9, Theme.TextMuted, FontWeights.Normal);
+            _monthPaydayDateText.HorizontalAlignment = HorizontalAlignment.Right;
+            _monthPaydayDateText.VerticalAlignment = VerticalAlignment.Center;
+            header.Children.Add(_monthPaydayDateText);
+            Grid.SetColumn(_monthPaydayDateText, 1);
+            content.Children.Add(header);
+
+            Grid body = new Grid();
+            body.Margin = new Thickness(0, 1, 0, 0);
+            body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            StackPanel count = new StackPanel();
+            count.Orientation = Orientation.Horizontal;
+            count.VerticalAlignment = VerticalAlignment.Bottom;
+            _monthPaydayDaysText = Theme.Text("—", 34, Theme.White,
+                Theme.MonoFont, FontWeights.Normal);
+            _monthPaydayDaysText.VerticalAlignment = VerticalAlignment.Bottom;
+            _monthPaydayUnitText = Theme.CnText("天", 11, Theme.TextSoft, FontWeights.Normal);
+            _monthPaydayUnitText.Margin = new Thickness(5, 0, 0, 7);
+            _monthPaydayUnitText.VerticalAlignment = VerticalAlignment.Bottom;
+            count.Children.Add(_monthPaydayDaysText);
+            count.Children.Add(_monthPaydayUnitText);
+            body.Children.Add(count);
+
+            _monthPaydayHintText = Theme.CnText("按自然日估算", 8.5, Theme.TextMuted,
+                FontWeights.Normal);
+            _monthPaydayHintText.HorizontalAlignment = HorizontalAlignment.Right;
+            _monthPaydayHintText.VerticalAlignment = VerticalAlignment.Bottom;
+            _monthPaydayHintText.Margin = new Thickness(10, 0, 0, 7);
+            body.Children.Add(_monthPaydayHintText);
+            Grid.SetColumn(_monthPaydayHintText, 1);
+
+            content.Children.Add(body);
+            Grid.SetRow(body, 1);
+            panel.Child = content;
+            return panel;
+        }
+
+        private UIElement BuildMonthMetrics()
+        {
+            Border strip = Theme.Panel(Theme.PanelBackground, Theme.PanelBorder, 13, 1);
+            strip.Height = 58;
+            strip.Margin = new Thickness(0, 12, 0, 0);
+
+            Grid grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            _monthDailyText = AddMonthMetricCell(grid, 0, "本月日薪");
+            _monthWorkdaysText = AddMonthMetricCell(grid, 2, "本月工作日");
+            _monthElapsedText = AddMonthMetricCell(grid, 4, "本月已过");
+
+            AddVerticalSeparator(grid, 1);
+            AddVerticalSeparator(grid, 3);
+            strip.Child = grid;
+            return strip;
+        }
+
+        private static TextBlock AddMonthMetricCell(Grid grid, int column, string label)
+        {
+            StackPanel cell = new StackPanel();
+            cell.Margin = new Thickness(14, 8, 14, 8);
+            cell.VerticalAlignment = VerticalAlignment.Center;
+            TextBlock caption = Theme.CnText(label, 9.0, Theme.TextMuted, FontWeights.Normal);
+            TextBlock value = Theme.MonoText("—", 13.0, Theme.TextSoft);
+            value.Margin = new Thickness(0, 2, 0, 0);
+            cell.Children.Add(caption);
+            cell.Children.Add(value);
+            grid.Children.Add(cell);
+            Grid.SetColumn(cell, column);
+            return value;
+        }
+
+        private UIElement BuildMonthPaydayNote()
+        {
+            _monthPaydayNote = Theme.CnText("按当前设置估算 · 不含请假/加班", 8.5,
+                Theme.TextMuted, FontWeights.Normal);
+            _monthPaydayNote.Margin = new Thickness(0, 8, 0, 0);
+            _monthPaydayNote.TextWrapping = TextWrapping.Wrap;
+            return _monthPaydayNote;
+        }
+
+        private UIElement BuildHeroLabel()
+        {
+            StackPanel labels = new StackPanel();
+            labels.Margin = new Thickness(0, 15, 0, 0);
             labels.Orientation = Orientation.Horizontal;
             labels.VerticalAlignment = VerticalAlignment.Center;
             TextBlock label = Theme.CnText("今日已赚", 11, Theme.TextSecondary, FontWeights.Normal);
@@ -303,18 +631,7 @@ namespace SalaryMonitor.UI
 
             labels.Children.Add(label);
             labels.Children.Add(tag);
-            row.Children.Add(labels);
-
-            _eyeButton = new IconButton(
-                _settings.AmountsHidden ? AppIcons.EyeOff : AppIcons.Eye,
-                _settings.AmountsHidden ? "显示金额" : "隐藏金额", false);
-            _eyeButton.HorizontalAlignment = HorizontalAlignment.Right;
-            _eyeButton.VerticalAlignment = VerticalAlignment.Center;
-            _eyeButton.Click += OnEyeClick;
-            row.Children.Add(_eyeButton);
-            Grid.SetColumn(_eyeButton, 1);
-
-            return row;
+            return labels;
         }
 
         private UIElement BuildAmount()
@@ -527,7 +844,7 @@ namespace SalaryMonitor.UI
         {
             Rect workArea = SystemParameters.WorkArea;
             Width = Math.Min(504, Math.Max(460, workArea.Width - 8));
-            Height = Math.Min(524, Math.Max(430, workArea.Height - 8));
+            Height = Math.Min(560, Math.Max(480, workArea.Height - 8));
             Left = workArea.Left + Math.Max(0, (workArea.Width - Width) / 2);
             Top = workArea.Top + Math.Max(0, (workArea.Height - Height) / 2);
 
@@ -549,6 +866,7 @@ namespace SalaryMonitor.UI
         {
             DateTime now = AppClock.Now;
             _snapshot = PayCalculator.Calculate(_settings, now);
+            _monthSnapshot = MonthCalculator.Calculate(_settings, now);
 
             if (_settings.AmountsHidden)
             {
@@ -598,7 +916,116 @@ namespace SalaryMonitor.UI
                     " / " + _snapshot.TotalPaidMinutes.ToString(CultureInfo.InvariantCulture) + " 分钟";
             }
             UpdateProgressBar();
+            UpdateMonthUi();
             UpdateFooterHint();
+        }
+
+        private void UpdateMonthUi()
+        {
+            if (_monthSnapshot == null || _monthAmountText == null)
+            {
+                return;
+            }
+
+            if (_settings.AmountsHidden)
+            {
+                _monthAmountText.Text = Formatters.HiddenAmount;
+                _monthAmountText.FontSize = 50;
+                _monthDailyText.Text = Formatters.HiddenMoney;
+            }
+            else
+            {
+                string amount = Formatters.MoneyValue(_monthSnapshot.MonthEarned);
+                _monthAmountText.Text = amount;
+                if (amount.Length > 12)
+                {
+                    _monthAmountText.FontSize = 32;
+                }
+                else if (amount.Length > 9)
+                {
+                    _monthAmountText.FontSize = 42;
+                }
+                else
+                {
+                    _monthAmountText.FontSize = 50;
+                }
+                _monthDailyText.Text = Formatters.Money(_monthSnapshot.DailyWage);
+            }
+
+            _monthBasisTagText.Text = _monthSnapshot.ActualWorkdays
+                ? "按实际工作日"
+                : "按日薪累计";
+
+            _monthWorkdaysText.Text = _monthSnapshot.TotalWorkdays.ToString(
+                CultureInfo.InvariantCulture) + " 天";
+            _monthElapsedText.Text = Formatters.WorkdaysValue(
+                _monthSnapshot.CompletedWorkdays) + " 天";
+            _monthProgressDaysText.Text = Formatters.WorkdaysValue(
+                _monthSnapshot.CompletedWorkdays) + " / " +
+                _monthSnapshot.TotalWorkdays.ToString(CultureInfo.InvariantCulture) + " 天";
+            _monthProgressPercentText.Text = _monthSnapshot.TotalWorkdays > 0
+                ? Formatters.Progress(_monthSnapshot.Progress)
+                : "—";
+            _monthProgressRatio = _monthSnapshot.Progress;
+            UpdateMonthProgressBar();
+
+            if (!_monthSnapshot.PaydayConfigured)
+            {
+                _monthPaydayTitle.Text = "发薪日未设置";
+                _monthPaydayDateText.Text = "";
+                _monthPaydayDaysText.Text = "—";
+                _monthPaydayDaysText.FontFamily = Theme.ChineseFont;
+                _monthPaydayDaysText.FontSize = 24;
+                _monthPaydayDaysText.FontWeight = FontWeights.Normal;
+                _monthPaydayUnitText.Text = "";
+                _monthPaydayHintText.Text = "可在设置中填写";
+            }
+            else if (_monthSnapshot.IsPaydayToday)
+            {
+                _monthPaydayTitle.Text = "今天发薪";
+                _monthPaydayDateText.Text = Formatters.MonthDay(
+                    _monthSnapshot.NextPayday.Value);
+                _monthPaydayDaysText.Text = "今天";
+                _monthPaydayDaysText.FontFamily = Theme.ChineseFont;
+                _monthPaydayDaysText.FontSize = 26;
+                _monthPaydayDaysText.FontWeight = FontWeights.SemiBold;
+                _monthPaydayUnitText.Text = "";
+                _monthPaydayHintText.Text = "按自然日估算";
+            }
+            else
+            {
+                _monthPaydayTitle.Text = "距下次发薪";
+                _monthPaydayDateText.Text = Formatters.MonthDay(
+                    _monthSnapshot.NextPayday.Value);
+                _monthPaydayDaysText.Text = _monthSnapshot.DaysUntilPayday.ToString(
+                    CultureInfo.InvariantCulture);
+                _monthPaydayDaysText.FontFamily = Theme.MonoFont;
+                _monthPaydayDaysText.FontSize = 34;
+                _monthPaydayDaysText.FontWeight = FontWeights.Normal;
+                _monthPaydayUnitText.Text = "天";
+                _monthPaydayHintText.Text = "按自然日估算";
+            }
+        }
+
+        private void UpdateMonthProgressBar()
+        {
+            if (_monthProgressTrack == null || _monthProgressFill == null)
+            {
+                return;
+            }
+
+            double width = _monthProgressTrack.ActualWidth > 0
+                ? _monthProgressTrack.ActualWidth * _monthProgressRatio
+                : 0.0;
+            if (width < 0.0)
+            {
+                width = 0.0;
+            }
+            if (width > _monthProgressTrack.ActualWidth)
+            {
+                width = _monthProgressTrack.ActualWidth;
+            }
+            _monthProgressFill.Width = width;
         }
 
         private void ApplyPhase()
@@ -694,6 +1121,30 @@ namespace SalaryMonitor.UI
                 return;
             }
 
+            if (_monthView && _monthSnapshot != null)
+            {
+                if (_monthSnapshot.ActualWorkdays)
+                {
+                    if (!_monthSnapshot.CalendarDataAvailable)
+                    {
+                        _footerHint.Text = "未收录 " + _monthSnapshot.Year.ToString(
+                            CultureInfo.InvariantCulture) + " 年节假日 · 按工作日估算";
+                    }
+                    else
+                    {
+                        _footerHint.Text = "按本月 " + _monthSnapshot.TotalWorkdays.ToString(
+                            CultureInfo.InvariantCulture) + " 个工作日估算";
+                    }
+                }
+                else
+                {
+                    _footerHint.Text = "日薪累计估算 · 月末可能不等于月薪";
+                }
+                _footerHint.Foreground = Theme.TextMuted;
+                _updateNoteText.Text = "本月实时累计";
+                return;
+            }
+
             string basis;
             if (_snapshot.ActualWorkdays)
             {
@@ -748,6 +1199,38 @@ namespace SalaryMonitor.UI
                 width = _progressTrack.ActualWidth;
             }
             _progressFill.Width = width;
+        }
+
+        private void OnTodayTabClick(object sender, RoutedEventArgs e)
+        {
+            SetMonthView(false);
+        }
+
+        private void OnMonthTabClick(object sender, RoutedEventArgs e)
+        {
+            SetMonthView(true);
+        }
+
+        private void SetMonthView(bool month)
+        {
+            _monthView = month;
+            if (_todayPage != null)
+            {
+                _todayPage.Visibility = month ? Visibility.Collapsed : Visibility.Visible;
+            }
+            if (_monthPage != null)
+            {
+                _monthPage.Visibility = month ? Visibility.Visible : Visibility.Collapsed;
+            }
+            if (_todayTab != null)
+            {
+                _todayTab.SetActive(!month);
+            }
+            if (_monthTab != null)
+            {
+                _monthTab.SetActive(month);
+            }
+            UpdateUi();
         }
 
         private void OnHeaderMouseDown(object sender, MouseButtonEventArgs e)
@@ -866,6 +1349,18 @@ namespace SalaryMonitor.UI
             _settings.AmountsHidden = hidden;
             UpdateUi();
             UpdateEyeButton();
+        }
+
+        internal void SetMonthViewForTest(bool month)
+        {
+            SetMonthView(month);
+        }
+
+        internal void SetPaydayForTest(int payday)
+        {
+            _settings = _settings.Clone();
+            _settings.Payday = payday;
+            UpdateUi();
         }
 #endif
     }

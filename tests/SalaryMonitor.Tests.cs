@@ -122,6 +122,7 @@ namespace SalaryMonitor.Tests
         public static void Run(TestRunner runner)
         {
             RunCalculations(runner);
+            RunMonthCalculations(runner);
             RunValidation(runner);
         }
 
@@ -620,6 +621,195 @@ namespace SalaryMonitor.Tests
             });
         }
 
+        private static void RunMonthCalculations(TestRunner runner)
+        {
+            runner.Run("MONTH-001 November 5 mid-afternoon month-to-date", delegate
+            {
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    AppSettings.CreateDefault(), At(new DateTime(2026, 11, 5), 16, 28, 35));
+                TestRunner.Equal(21, s.TotalWorkdays, "total workdays");
+                TestRunner.Equal(3, s.CompletedFullWorkdays, "completed full workdays");
+                TestRunner.Equal(3.683333m, Decimal.Round(s.CompletedWorkdays, 6), "completed workdays");
+                TestRunner.Equal(328, s.TodayCompletedPaidMinutes, "today completed minutes");
+                TestRunner.Equal(480, s.TodayTotalPaidMinutes, "today total minutes");
+                TestRunner.Equal("¥5,673.18", Formatters.Money(s.MonthEarned), "month earned");
+                TestRunner.Equal("17.5%", Formatters.Progress(s.Progress), "progress");
+                TestRunner.Equal("¥1,540.23", Formatters.Money(s.DailyWage), "daily wage");
+            });
+
+            runner.Run("MONTH-002 November 5 after work includes the full day", delegate
+            {
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    AppSettings.CreateDefault(), At(new DateTime(2026, 11, 5), 19, 0, 0));
+                TestRunner.Equal(3, s.CompletedFullWorkdays, "completed full workdays");
+                TestRunner.Equal(4m, s.CompletedWorkdays, "completed workdays");
+                TestRunner.Equal("¥6,160.92", Formatters.Money(s.MonthEarned), "month earned");
+                TestRunner.Equal("19%", Formatters.Progress(s.Progress), "progress");
+            });
+
+            runner.Run("MONTH-003 November 1 Sunday has no month earnings yet", delegate
+            {
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    AppSettings.CreateDefault(), At(new DateTime(2026, 11, 1), 12, 0, 0));
+                TestRunner.Equal(0, s.CompletedFullWorkdays, "completed full workdays");
+                TestRunner.Equal(0m, s.CompletedWorkdays, "completed workdays");
+                TestRunner.Equal("¥0.00", Formatters.Money(s.MonthEarned), "month earned");
+                TestRunner.Equal("0%", Formatters.Progress(s.Progress), "progress");
+            });
+
+            runner.Run("MONTH-004 actual mode uses the real workday count", delegate
+            {
+                AppSettings settings = AppSettings.CreateDefault();
+                settings.ActualWorkdaysEnabled = true;
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    settings, At(new DateTime(2026, 11, 5), 16, 28, 35));
+                TestRunner.True(s.ActualWorkdays, "actual flag");
+                TestRunner.True(s.CalendarDataAvailable, "calendar data");
+                TestRunner.Equal(21, s.TotalWorkdays, "total workdays");
+                TestRunner.Equal("¥1,595.24", Formatters.Money(s.DailyWage), "daily wage");
+                TestRunner.Equal("¥5,875.79", Formatters.Money(s.MonthEarned), "month earned");
+                TestRunner.Equal("17.5%", Formatters.Progress(s.Progress), "progress");
+            });
+
+            runner.Run("MONTH-005 actual mode month end equals monthly salary", delegate
+            {
+                AppSettings settings = AppSettings.CreateDefault();
+                settings.ActualWorkdaysEnabled = true;
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    settings, At(new DateTime(2026, 12, 31), 19, 0, 0));
+                TestRunner.Equal(23, s.TotalWorkdays, "total workdays");
+                TestRunner.Equal("¥33,500.00", Formatters.Money(s.MonthEarned), "month earned");
+                TestRunner.Equal("100%", Formatters.Progress(s.Progress), "progress");
+            });
+
+            runner.Run("MONTH-006 average mode December can exceed monthly salary", delegate
+            {
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    AppSettings.CreateDefault(), At(new DateTime(2026, 12, 31), 19, 0, 0));
+                TestRunner.Equal(23, s.TotalWorkdays, "total workdays");
+                TestRunner.Equal("¥35,425.29", Formatters.Money(s.MonthEarned), "month earned");
+                TestRunner.Equal("100%", Formatters.Progress(s.Progress), "progress");
+            });
+
+            runner.Run("MONTH-007 actual mode skips National Day holidays", delegate
+            {
+                AppSettings settings = AppSettings.CreateDefault();
+                settings.ActualWorkdaysEnabled = true;
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    settings, At(new DateTime(2026, 10, 9), 19, 0, 0));
+                TestRunner.Equal(18, s.TotalWorkdays, "total workdays");
+                TestRunner.Equal(1, s.CompletedFullWorkdays, "completed full workdays");
+                TestRunner.Equal(2m, s.CompletedWorkdays, "completed workdays");
+                TestRunner.Equal("¥3,722.22", Formatters.Money(s.MonthEarned), "month earned");
+                TestRunner.Equal("11.1%", Formatters.Progress(s.Progress), "progress");
+            });
+
+            runner.Run("MONTH-008 payday before this month's date moves to next month", delegate
+            {
+                AppSettings settings = AppSettings.CreateDefault();
+                settings.Payday = 15;
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    settings, At(new DateTime(2026, 11, 16), 10, 0, 0));
+                TestRunner.True(s.PaydayConfigured, "configured");
+                TestRunner.True(s.NextPayday.HasValue, "next payday");
+                TestRunner.Equal(new DateTime(2026, 12, 15), s.NextPayday.Value, "next date");
+                TestRunner.Equal(29, s.DaysUntilPayday, "days");
+                TestRunner.False(s.IsPaydayToday, "not today");
+            });
+
+            runner.Run("MONTH-009 payday today has zero countdown", delegate
+            {
+                AppSettings settings = AppSettings.CreateDefault();
+                settings.Payday = 16;
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    settings, At(new DateTime(2026, 11, 16), 10, 0, 0));
+                TestRunner.Equal(new DateTime(2026, 11, 16), s.NextPayday.Value, "next date");
+                TestRunner.Equal(0, s.DaysUntilPayday, "days");
+                TestRunner.True(s.IsPaydayToday, "today");
+            });
+
+            runner.Run("MONTH-010 payday tomorrow is one day away", delegate
+            {
+                AppSettings settings = AppSettings.CreateDefault();
+                settings.Payday = 17;
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    settings, At(new DateTime(2026, 11, 16), 10, 0, 0));
+                TestRunner.Equal(new DateTime(2026, 11, 17), s.NextPayday.Value, "next date");
+                TestRunner.Equal(1, s.DaysUntilPayday, "days");
+                TestRunner.False(s.IsPaydayToday, "not today");
+            });
+
+            runner.Run("MONTH-011 payday 31 clamps to the short month's last day", delegate
+            {
+                AppSettings settings = AppSettings.CreateDefault();
+                settings.Payday = 31;
+                MonthSnapshot before = MonthCalculator.Calculate(
+                    settings, At(new DateTime(2027, 2, 27), 10, 0, 0));
+                MonthSnapshot today = MonthCalculator.Calculate(
+                    settings, At(new DateTime(2027, 2, 28), 10, 0, 0));
+                TestRunner.Equal(new DateTime(2027, 2, 28), before.NextPayday.Value, "before date");
+                TestRunner.Equal(1, before.DaysUntilPayday, "before days");
+                TestRunner.True(today.IsPaydayToday, "clamped today");
+                TestRunner.Equal(0, today.DaysUntilPayday, "today days");
+            });
+
+            runner.Run("MONTH-012 leap year payday 31 clamps to February 29", delegate
+            {
+                AppSettings settings = AppSettings.CreateDefault();
+                settings.Payday = 31;
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    settings, At(new DateTime(2028, 2, 29), 10, 0, 0));
+                TestRunner.True(s.IsPaydayToday, "leap day");
+                TestRunner.Equal(new DateTime(2028, 2, 29), s.NextPayday.Value, "leap date");
+            });
+
+            runner.Run("MONTH-013 unset payday has no countdown", delegate
+            {
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    AppSettings.CreateDefault(), At(new DateTime(2026, 11, 16), 10, 0, 0));
+                TestRunner.False(s.PaydayConfigured, "not configured");
+                TestRunner.False(s.NextPayday.HasValue, "no next date");
+                TestRunner.Equal(0, s.DaysUntilPayday, "days");
+            });
+
+            runner.Run("MONTH-014 payday at month boundary rolls into January", delegate
+            {
+                AppSettings settings = AppSettings.CreateDefault();
+                settings.Payday = 1;
+                MonthSnapshot s = MonthCalculator.Calculate(
+                    settings, At(new DateTime(2026, 12, 31), 23, 59, 0));
+                TestRunner.Equal(new DateTime(2027, 1, 1), s.NextPayday.Value, "next date");
+                TestRunner.Equal(1, s.DaysUntilPayday, "days");
+            });
+
+            runner.Run("MONTH-015 month helpers and formatting", delegate
+            {
+                TestRunner.Equal(21, MonthCalculator.CountWorkdays(2026, 11, false), "average November");
+                TestRunner.Equal(21, MonthCalculator.CountWorkdays(2026, 11, true), "actual November");
+                TestRunner.Equal(18, MonthCalculator.CountWorkdays(2026, 10, true), "actual October");
+                TestRunner.Equal(new DateTime(2027, 2, 28),
+                    MonthCalculator.PaydayInMonth(2027, 2, 31), "short month");
+                TestRunner.Equal(new DateTime(2028, 2, 29),
+                    MonthCalculator.PaydayInMonth(2028, 2, 31), "leap month");
+                TestRunner.Equal("10.7", Formatters.WorkdaysValue(10.6833m), "workdays value");
+                TestRunner.Equal("21", Formatters.WorkdaysValue(21m), "whole workdays");
+                TestRunner.Equal("12月15日", Formatters.MonthDay(new DateTime(2026, 12, 15)), "month day");
+            });
+
+            runner.Run("MONTH-016 payday is validated and cloned", delegate
+            {
+                AppSettings settings = AppSettings.CreateDefault();
+                settings.Payday = 31;
+                TestRunner.Equal(31, settings.Clone().Payday, "clone");
+                settings.Payday = 32;
+                TestRunner.False(SettingsValidator.Validate(settings).IsValid, "over 31");
+                settings.Payday = -1;
+                TestRunner.False(SettingsValidator.Validate(settings).IsValid, "negative");
+                settings.Payday = 0;
+                TestRunner.True(SettingsValidator.Validate(settings).IsValid, "unset is valid");
+            });
+        }
+
         private static void RunValidation(TestRunner runner)
         {
             runner.Run("VALID-001 defaults are valid", delegate
@@ -710,6 +900,7 @@ namespace SalaryMonitor.Tests
                     TestRunner.Equal(570, result.Settings.WorkStartMinutes, "default start");
                     TestRunner.True(result.Settings.AlwaysOnTop, "default topmost");
                     TestRunner.False(result.Settings.AmountsHidden, "default amounts visible");
+                    TestRunner.Equal(0, result.Settings.Payday, "default payday unset");
                 });
             });
 
@@ -729,6 +920,7 @@ namespace SalaryMonitor.Tests
                     settings.AlwaysOnTop = false;
                     settings.ActualWorkdaysEnabled = true;
                     settings.AmountsHidden = true;
+                    settings.Payday = 15;
 
                     SettingsSaveResult save = store.Save(settings);
                     TestRunner.True(save.Success, "save success: " + save.ErrorMessage);
@@ -745,6 +937,7 @@ namespace SalaryMonitor.Tests
                     TestRunner.False(load.Settings.AlwaysOnTop, "topmost");
                     TestRunner.True(load.Settings.ActualWorkdaysEnabled, "actual workdays");
                     TestRunner.True(load.Settings.AmountsHidden, "amounts hidden");
+                    TestRunner.Equal(15, load.Settings.Payday, "payday");
                 });
             });
 
@@ -785,7 +978,7 @@ namespace SalaryMonitor.Tests
                     AppSettings settings = AppSettings.CreateDefault();
                     SettingsStore writer = new SettingsStore(path);
                     TestRunner.True(writer.Save(settings).Success, "seed save");
-                    string json = File.ReadAllText(path).Replace("\"version\":3", "\"version\":4");
+                    string json = File.ReadAllText(path).Replace("\"version\":4", "\"version\":5");
                     File.WriteAllText(path, json, new UTF8Encoding(false));
                     SettingsLoadResult result = new SettingsStore(path).Load();
                     TestRunner.True(result.UsedDefaults, "version fallback");
@@ -996,11 +1189,12 @@ namespace SalaryMonitor.Tests
                     File.WriteAllText(path, json, new UTF8Encoding(false));
                     SettingsLoadResult result = new SettingsStore(path).Load();
                     TestRunner.False(result.UsedDefaults, "migrated file loaded");
-                    TestRunner.Equal(3, result.Settings.Version, "version upgraded");
+                    TestRunner.Equal(4, result.Settings.Version, "version upgraded");
                     TestRunner.Equal(40000m, result.Settings.MonthlySalary, "salary retained");
                     TestRunner.Equal(22m, result.Settings.MonthlyWorkDays, "days retained");
                     TestRunner.False(result.Settings.ActualWorkdaysEnabled, "actual mode defaults off");
                     TestRunner.False(result.Settings.AmountsHidden, "amounts default visible");
+                    TestRunner.Equal(0, result.Settings.Payday, "payday defaults unset");
                 });
             });
 
@@ -1016,9 +1210,29 @@ namespace SalaryMonitor.Tests
                     File.WriteAllText(path, json, new UTF8Encoding(false));
                     SettingsLoadResult result = new SettingsStore(path).Load();
                     TestRunner.False(result.UsedDefaults, "migrated file loaded");
-                    TestRunner.Equal(3, result.Settings.Version, "version upgraded");
+                    TestRunner.Equal(4, result.Settings.Version, "version upgraded");
                     TestRunner.True(result.Settings.ActualWorkdaysEnabled, "actual mode retained");
                     TestRunner.False(result.Settings.AmountsHidden, "hidden flag defaults off");
+                    TestRunner.Equal(0, result.Settings.Payday, "payday defaults unset");
+                });
+            });
+
+            runner.Run("STORE-019 version 3 settings migrate with hidden state intact", delegate
+            {
+                WithTempDirectory(delegate(string dir)
+                {
+                    string path = Path.Combine(dir, "settings.json");
+                    string json = "{\"version\":3,\"monthlySalary\":40000,\"monthlyWorkDays\":22," +
+                        "\"workStartMinutes\":540,\"lunchStartMinutes\":720," +
+                        "\"lunchEndMinutes\":780,\"workEndMinutes\":1080,\"alwaysOnTop\":true," +
+                        "\"actualWorkdaysEnabled\":true,\"amountsHidden\":true}";
+                    File.WriteAllText(path, json, new UTF8Encoding(false));
+                    SettingsLoadResult result = new SettingsStore(path).Load();
+                    TestRunner.False(result.UsedDefaults, "migrated file loaded");
+                    TestRunner.Equal(4, result.Settings.Version, "version upgraded");
+                    TestRunner.True(result.Settings.AmountsHidden, "hidden state retained");
+                    TestRunner.True(result.Settings.ActualWorkdaysEnabled, "actual mode retained");
+                    TestRunner.Equal(0, result.Settings.Payday, "payday defaults unset");
                 });
             });
         }

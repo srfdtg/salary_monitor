@@ -48,6 +48,21 @@ foreach ($state in $states) {
         }
         Copy-Item -LiteralPath $hidden -Destination (Join-Path $docsShots "main-hidden.png") -Force
         Write-Output ("Captured {0} -> main-hidden.png" -f $state.Time)
+
+        foreach ($name in @("month.png", "month-hidden.png")) {
+            $month = Join-Path $outputRoot $name
+            if (-not (Test-Path -LiteralPath $month)) {
+                throw "Month screenshot was not produced: $name"
+            }
+            Copy-Item -LiteralPath $month -Destination (Join-Path $docsShots $name) -Force
+            Write-Output ("Captured {0} -> {1}" -f $state.Time, $name)
+        }
+
+        $settings = Join-Path $outputRoot "settings.png"
+        if (Test-Path -LiteralPath $settings) {
+            Copy-Item -LiteralPath $settings -Destination (Join-Path $docsShots "settings-default.png") -Force
+            Write-Output ("Captured {0} -> settings-default.png" -f $state.Time)
+        }
     }
 }
 
