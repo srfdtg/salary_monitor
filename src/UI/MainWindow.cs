@@ -442,8 +442,8 @@ namespace SalaryMonitor.UI
             currency.Margin = new Thickness(0, 0, 6, 9);
             row.Children.Add(currency);
 
-            _monthAmountText = Theme.Text("0.00", 50, Theme.AmountForeground,
-                Theme.NumberFont, FontWeights.SemiBold);
+            _monthAmountText = Theme.AnimatedDigits(Theme.Text(
+                "0.00", 50, Theme.AmountForeground, Theme.NumberFont, FontWeights.Medium));
             _monthAmountText.VerticalAlignment = VerticalAlignment.Bottom;
             _monthAmountText.HorizontalAlignment = HorizontalAlignment.Left;
             row.Children.Add(_monthAmountText);
@@ -538,8 +538,8 @@ namespace SalaryMonitor.UI
             StackPanel count = new StackPanel();
             count.Orientation = Orientation.Horizontal;
             count.VerticalAlignment = VerticalAlignment.Bottom;
-            _monthPaydayDaysText = Theme.Text("—", 34, Theme.White,
-                Theme.MonoFont, FontWeights.Normal);
+            _monthPaydayDaysText = Theme.AnimatedDigits(Theme.Text(
+                "—", 34, Theme.White, Theme.MonoFont, FontWeights.Normal));
             _monthPaydayDaysText.VerticalAlignment = VerticalAlignment.Bottom;
             _monthPaydayUnitText = Theme.CnText("天", 11, Theme.TextSoft, FontWeights.Normal);
             _monthPaydayUnitText.Margin = new Thickness(5, 0, 0, 7);
@@ -646,7 +646,8 @@ namespace SalaryMonitor.UI
             currency.Margin = new Thickness(0, 0, 6, 9);
             row.Children.Add(currency);
 
-            _amountText = Theme.Text("0.00", 50, Theme.AmountForeground, Theme.NumberFont, FontWeights.SemiBold);
+            _amountText = Theme.AnimatedDigits(Theme.Text(
+                "0.00", 50, Theme.AmountForeground, Theme.NumberFont, FontWeights.Medium));
             _amountText.VerticalAlignment = VerticalAlignment.Bottom;
             _amountText.HorizontalAlignment = HorizontalAlignment.Left;
             row.Children.Add(_amountText);
@@ -740,7 +741,7 @@ namespace SalaryMonitor.UI
             timerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             timerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            _timerText = Theme.MonoText("00:00:00", 34, Theme.White);
+            _timerText = Theme.AnimatedDigits(Theme.MonoText("00:00:00", 34, Theme.White));
             _timerText.VerticalAlignment = VerticalAlignment.Bottom;
             timerRow.Children.Add(_timerText);
 

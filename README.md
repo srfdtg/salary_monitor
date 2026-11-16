@@ -2,6 +2,8 @@
 
 一个轻量的薪资显示器，提供 Windows 桌面版和 Android 手机版：按分钟累计今天的收入，按秒倒数距离下班的时间；v1.3 起还可切换到“本月”，查看本月累计、工作日进度和发薪日倒计时，并可用小眼睛一键隐藏工资金额。
 
+> Windows v1.3.1 优化数字渲染：大金额改用 Segoe UI Variable Display（Windows 10 回退 Segoe UI）、Medium 字重，并对持续变化的大数字关闭像素提示，减少锯齿和发虚。对比见 [数字渲染对比](docs/screenshots/typography-compare.png)。
+
 ![主界面](docs/screenshots/main-working.png)
 
 ## 立即使用
@@ -57,7 +59,7 @@ Android 版的构建、限制与目录说明见 [android/README.md](android/READ
 
 Android 版还可在设置中开启“按当月实际工作日计薪”：例如 2026 年 11 月有 21 个工作日，日薪为 `33,500 ÷ 21 ≈ ¥1,595.24`；法定节假日不计薪，调休周末正常计薪。
 
-Windows v1.3.0 也提供同名开关，使用同一套 2026—2027 年节假日/调休表；默认仍为 21.75 天平均。
+Windows v1.3.1 也提供同名开关，使用同一套 2026—2027 年节假日/调休表；默认仍为 21.75 天平均。
 
 ### 本月视图
 
@@ -182,4 +184,4 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\android\build.
 
 ---
 
-Windows 版：**1.3.0** · Android 版：**1.3.0** · 构建日期：2026-11-16
+Windows 版：**1.3.1** · Android 版：**1.3.0** · 构建日期：2026-11-16

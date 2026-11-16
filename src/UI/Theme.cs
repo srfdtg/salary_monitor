@@ -13,7 +13,10 @@ namespace SalaryMonitor.UI
         public static readonly FontFamily ChineseFont = new FontFamily("Microsoft YaHei UI");
         public static readonly FontFamily UiFont = new FontFamily("Segoe UI");
         public static readonly FontFamily MonoFont = new FontFamily("Consolas");
-        public static readonly FontFamily NumberFont = new FontFamily("Segoe UI");
+        // Display-optimized Segoe UI Variable has rounder, smoother large digits
+        // on Windows 11; Windows 10 falls back to the classic Segoe UI family.
+        public static readonly FontFamily NumberFont =
+            new FontFamily("Segoe UI Variable Display, Segoe UI");
 
         public static readonly Color TextPrimaryColor = Hex("#F8FAFC");
         public static readonly Color TextSecondaryColor = Hex("#94A3B8");
@@ -167,7 +170,20 @@ namespace SalaryMonitor.UI
             text.TextWrapping = TextWrapping.NoWrap;
             text.VerticalAlignment = VerticalAlignment.Center;
             TextOptions.SetTextFormattingMode(text, TextFormattingMode.Ideal);
-            TextOptions.SetTextRenderingMode(text, TextRenderingMode.Grayscale);
+            TextOptions.SetTextRenderingMode(text, TextRenderingMode.Auto);
+            return text;
+        }
+
+        /// <summary>
+        /// Large, continuously changing digits look smoother without pixel
+        /// hinting. Small labels keep their normal hinting for crispness.
+        /// </summary>
+        public static TextBlock AnimatedDigits(TextBlock text)
+        {
+            if (text != null)
+            {
+                TextOptions.SetTextHintingMode(text, TextHintingMode.Animated);
+            }
             return text;
         }
 
